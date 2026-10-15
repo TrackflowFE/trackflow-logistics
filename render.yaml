@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: trackflow-logistics
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /actuator/health
+    envVars:
+      # Todos los valores secretos se definen en el dashboard de Render, nunca en este archivo.
+      # Base única de Supabase (la misma de las otras dos APIs). El esquema lo crea la API de Envíos.
+      - key: TRACKFLOW_DB_URL
+        sync: false
+      - key: TRACKFLOW_DB_USER
+        sync: false
+      - key: TRACKFLOW_DB_PASSWORD
+        sync: false
+      # El broker y el vhost tienen que ser los mismos de las otras dos APIs (instancia trackflow-apis).
+      - key: RABBITMQ_HOST
+        sync: false
+      - key: RABBITMQ_USER
+        sync: false
+      - key: RABBITMQ_PASSWORD
+        sync: false
+      - key: RABBITMQ_VHOST
+        sync: false
+      - key: RABBITMQ_PORT
+        value: "5671"
+      - key: RABBITMQ_SSL
+        value: "true"
+      # Idéntico en las tres APIs: la de Envíos firma los tokens y esta los verifica.
+      - key: TRACKFLOW_JWT_SECRET
+        sync: false
+      - key: TRACKFLOW_SECURITY_ENABLED
+        value: "true"
+      - key: TRACKFLOW_INACTIVIDAD_MINUTOS
+        value: "30"
+      # Dominio(s) del frontend, separados por comas.
+      - key: TRACKFLOW_CORS_ORIGINS
+        sync: false
+      - key: TRACKFLOW_EVENTS_EXCHANGE
+        value: trackflow.events
+      - key: TRACKFLOW_SHIPMENT_CREATED_KEY
+        value: shipment.created
+      - key: TRACKFLOW_LOGISTICS_REGISTERED_KEY
+        value: logistics.event.registered
