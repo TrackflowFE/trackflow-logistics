@@ -5,6 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * Usuario del sistema (HU-08). Solo guarda el hash BCrypt de la contraseña, nunca
@@ -16,26 +19,28 @@ import java.time.Instant;
  */
 @Entity
 @Table(name = "auth_users")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Usuario {
 
     @Id
     @Column(length = 50)
+    @Getter
     private String username;
 
     @Column(nullable = false, length = 100)
+    @Getter
     private String passwordHash;
 
     @Column(nullable = false, length = 100)
+    @Getter
     private String roles;
 
     @Column(nullable = false)
+    @Getter
     private boolean active;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
-
-    protected Usuario() {
-    }
 
     public Usuario(String username, String passwordHash, String roles, boolean active, Instant createdAt) {
         this.username = username;
@@ -43,25 +48,5 @@ public class Usuario {
         this.roles = roles;
         this.active = active;
         this.createdAt = createdAt;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public String getRoles() {
-        return roles;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    void cambiarPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
     }
 }

@@ -11,6 +11,7 @@ import com.trackflow.modules.logistics.domain.TransicionInvalidaException;
 import com.trackflow.shared.geografia.CatalogoDeCiudades;
 import com.trackflow.shared.geografia.Ciudad;
 import java.time.Instant;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
  * en la cola se saltaba todas las reglas.
  */
 @Service
+@RequiredArgsConstructor
 public class ValidadorDeRecorrido {
 
     /** El centro donde ocurrió el movimiento, con su ciudad, ya validados. */
@@ -33,11 +35,6 @@ public class ValidadorDeRecorrido {
 
     private final CatalogoDeCentros centros;
     private final CatalogoDeCiudades ciudades;
-
-    public ValidadorDeRecorrido(CatalogoDeCentros centros, CatalogoDeCiudades ciudades) {
-        this.centros = centros;
-        this.ciudades = ciudades;
-    }
 
     public LugarValidado validar(EstadoDelEnvio estado, EventType tipo, Long centroId, Instant ocurridoEn) {
         validarTransicion(estado, tipo, ocurridoEn);

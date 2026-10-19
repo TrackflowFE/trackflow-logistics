@@ -3,13 +3,13 @@ package com.trackflow.modules.logistics.application;
 import com.trackflow.modules.logistics.domain.EventType;
 import com.trackflow.modules.logistics.domain.LogisticsEvent;
 import com.trackflow.modules.logistics.domain.TrackedShipment;
-import com.trackflow.modules.logistics.domain.UnknownShipmentException;
 import com.trackflow.shared.geografia.CatalogoDeCiudades;
 import com.trackflow.shared.geografia.Ciudad;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  * escala" es exactamente lo que el operador podrá registrar.
  */
 @Service
+@RequiredArgsConstructor
 public class ConsultarRutaDelEnvio {
 
     /** Qué papel cumple la ciudad en el viaje. */
@@ -51,18 +52,9 @@ public class ConsultarRutaDelEnvio {
     private final ConsultarEstadoDelEnvio estadoDelEnvio;
     private final CatalogoDeCiudades ciudades;
 
-    public ConsultarRutaDelEnvio(TrackedShipmentRepository trackedShipments, LogisticsEventRepository logisticsEvents,
-            ConsultarEstadoDelEnvio estadoDelEnvio, CatalogoDeCiudades ciudades) {
-        this.trackedShipments = trackedShipments;
-        this.logisticsEvents = logisticsEvents;
-        this.estadoDelEnvio = estadoDelEnvio;
-        this.ciudades = ciudades;
-    }
-
     @Transactional(readOnly = true)
     public RutaDelEnvio ejecutar(String trackingNumber) {
-        TrackedShipment envio = trackedShipments.porTrackingNumber(trackingNumber)
-                .orElseThrow(() -> new UnknownShipmentException(trackingNumber));
+        TrackedShipment envio = trackedShipments.exigir(trackingNumber);
         List<LogisticsEvent> historial = logisticsEvents.findHistorial(trackingNumber);
         EstadoDelEnvio estado = estadoDelEnvio.desdeHistorial(envio, historial);
 
@@ -73,15 +65,18 @@ public class ConsultarRutaDelEnvio {
         List<Parada> paradas = new ArrayList<>();
         int total = recorridas.size() + pendientes.size();
         for (int i = 0; i < recorridas.size(); i++) {
-            boolean esLaActual = i == recorridas.size() - 1 && !entregado;
-            paradas.add(new Parada(recorridas.get(i), tipo(i, total),
-                    esLaActual ? EstadoParada.ACTUAL : EstadoParada.RECORRIDA));
+            paradas.add(new Parada(recorridas.get(i), tipo(i, total), EstadoParada.RECORRIDA));
+        }
+        // La última recorrida es donde está el paquete, salvo que ya se haya entregado.
+        if (!entregado) {
+            int actual = recorridas.size() - 1;
+            paradas.set(actual, new Parada(recorridas.get(actual), tipo(actual, total), EstadoParada.ACTUAL));
         }
         for (int i = 0; i < pendientes.size(); i++) {
             paradas.add(new Parada(pendientes.get(i), tipo(recorridas.size() + i, total), EstadoParada.PENDIENTE));
         }
 
-        Ciudad siguiente = pendientes.isEmpty() ? null : pendientes.get(0);
+        Ciudad siguiente = pendientes.stream().findFirst().orElse(null);
         // La última pendiente es el destino; las demás son escalas.
         int escalasPendientes = Math.max(0, pendientes.size() - 1);
         return new RutaDelEnvio(trackingNumber, estado.estado(), List.copyOf(paradas), siguiente, escalasPendientes);
@@ -95,10 +90,14 @@ public class ConsultarRutaDelEnvio {
     private List<Ciudad> ciudadesRecorridas(EstadoDelEnvio estado, List<LogisticsEvent> historial) {
         List<Ciudad> recorridas = new ArrayList<>();
         recorridas.add(estado.origen());
-        for (LogisticsEvent evento : historial) {
-            if (INGRESOS.contains(evento.getType()) && evento.getCityId() != null
-                    && !Objects.equals(ultimo(recorridas).id(), evento.getCityId())) {
-                recorridas.add(ciudades.exigir(evento.getCityId()));
+        List<Long> ciudadesDeIngreso = historial.stream()
+                .filter(evento -> INGRESOS.contains(evento.getType()))
+                .map(LogisticsEvent::getCityId)
+                .filter(Objects::nonNull)
+                .toList();
+        for (Long cityId : ciudadesDeIngreso) {
+            if (!Objects.equals(ultimo(recorridas).id(), cityId)) {
+                recorridas.add(ciudades.exigir(cityId));
             }
         }
         if (!Objects.equals(ultimo(recorridas).id(), estado.ciudadActual().id())) {

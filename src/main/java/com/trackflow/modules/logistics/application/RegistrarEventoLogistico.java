@@ -12,6 +12,7 @@ import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
  * porque a la cola también publican puntos de la cadena que no pasan por la API.
  */
 @Service
+@RequiredArgsConstructor
 public class RegistrarEventoLogistico {
 
     private static final Logger log = LoggerFactory.getLogger(RegistrarEventoLogistico.class);
@@ -35,18 +37,6 @@ public class RegistrarEventoLogistico {
     private final RedDeRutas red;
     private final EventPublisher events;
     private final Clock clock;
-
-    public RegistrarEventoLogistico(LogisticsEventRepository logisticsEvents,
-            TrackedShipmentRepository trackedShipments, ConsultarEstadoDelEnvio estadoDelEnvio,
-            ValidadorDeRecorrido validador, RedDeRutas red, EventPublisher events, Clock clock) {
-        this.logisticsEvents = logisticsEvents;
-        this.trackedShipments = trackedShipments;
-        this.estadoDelEnvio = estadoDelEnvio;
-        this.validador = validador;
-        this.red = red;
-        this.events = events;
-        this.clock = clock;
-    }
 
     /**
      * El broker entrega at-least-once, así que un mismo eventId puede llegar más de una vez;

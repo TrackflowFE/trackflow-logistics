@@ -5,6 +5,7 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import java.time.Instant;
+import org.springframework.util.StringUtils;
 
 public record RegistrarEventoRequest(
         @NotNull(message = "el tipo de evento es obligatorio") EventType type,
@@ -38,6 +39,6 @@ public record RegistrarEventoRequest(
 
     @AssertTrue(message = "el repartidor es obligatorio para un evento OUT_FOR_DELIVERY")
     public boolean isDelivererPresentWhenRequired() {
-        return type != EventType.OUT_FOR_DELIVERY || (delivererName != null && !delivererName.isBlank());
+        return type != EventType.OUT_FOR_DELIVERY || StringUtils.hasText(delivererName);
     }
 }

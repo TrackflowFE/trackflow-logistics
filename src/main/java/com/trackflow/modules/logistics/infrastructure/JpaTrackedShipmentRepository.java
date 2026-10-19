@@ -3,16 +3,14 @@ package com.trackflow.modules.logistics.infrastructure;
 import com.trackflow.modules.logistics.application.TrackedShipmentRepository;
 import com.trackflow.modules.logistics.domain.TrackedShipment;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 @Repository
+@RequiredArgsConstructor
 public class JpaTrackedShipmentRepository implements TrackedShipmentRepository {
 
     private final TrackedShipmentJpaRepository jpa;
-
-    public JpaTrackedShipmentRepository(TrackedShipmentJpaRepository jpa) {
-        this.jpa = jpa;
-    }
 
     @Override
     public TrackedShipment save(TrackedShipment trackedShipment) {

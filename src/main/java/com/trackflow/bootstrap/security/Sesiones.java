@@ -3,6 +3,7 @@ package com.trackflow.bootstrap.security;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,20 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
  * trabaja registrando movimientos no quede fuera por inactividad mientras lo hace.
  */
 @Service
+@RequiredArgsConstructor
 public class Sesiones {
 
     private final SesionRepository repositorio;
     private final UsuarioRepository usuarios;
     private final SecurityProperties propiedades;
     private final Clock clock;
-
-    public Sesiones(SesionRepository repositorio, UsuarioRepository usuarios, SecurityProperties propiedades,
-            Clock clock) {
-        this.repositorio = repositorio;
-        this.usuarios = usuarios;
-        this.propiedades = propiedades;
-        this.clock = clock;
-    }
 
     /**
      * Si la sesión del token sigue vigente, registra la actividad y devuelve true.

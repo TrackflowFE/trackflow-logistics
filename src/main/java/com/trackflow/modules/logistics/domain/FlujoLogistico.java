@@ -4,7 +4,10 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 /**
  * El recorrido de un envío como máquina de estados: qué movimiento puede seguir a
@@ -19,6 +22,7 @@ import java.util.Set;
  * estado se deriva de él, y apoyarse en el derivado obligaría a mantener las dos
  * versiones de acuerdo.
  */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class FlujoLogistico {
 
     /**
@@ -46,15 +50,12 @@ public final class FlujoLogistico {
         SIGUIENTES.put(EventType.DELIVERED, EnumSet.noneOf(EventType.class));
     }
 
-    private FlujoLogistico() {
-    }
-
     /**
      * Movimientos admisibles a continuación. {@code ultimo} es null cuando el envío
      * está registrado y todavía no se ha movido.
      */
     public static Set<EventType> siguientesPermitidos(EventType ultimo) {
-        return Collections.unmodifiableSet(ultimo == null ? DESDE_REGISTRADO : SIGUIENTES.get(ultimo));
+        return Collections.unmodifiableSet(Optional.ofNullable(ultimo).map(SIGUIENTES::get).orElse(DESDE_REGISTRADO));
     }
 
     /**
@@ -84,7 +85,7 @@ public final class FlujoLogistico {
      * movimiento anterior a ese ({@code anterior}, null si {@code ultimo} fue el primero).
      */
     public static String estadoTras(EventType ultimo, EventType anterior) {
-        return ultimo == null ? ESTADO_REGISTRADO : estadoResultante(ultimo, anterior);
+        return Optional.ofNullable(ultimo).map(tipo -> estadoResultante(tipo, anterior)).orElse(ESTADO_REGISTRADO);
     }
 
     /**

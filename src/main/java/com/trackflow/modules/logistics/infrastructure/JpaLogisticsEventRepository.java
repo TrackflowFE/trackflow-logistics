@@ -4,16 +4,14 @@ import com.trackflow.modules.logistics.application.LogisticsEventRepository;
 import com.trackflow.modules.logistics.domain.LogisticsEvent;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 @Repository
+@RequiredArgsConstructor
 public class JpaLogisticsEventRepository implements LogisticsEventRepository {
 
     private final LogisticsEventJpaRepository jpa;
-
-    public JpaLogisticsEventRepository(LogisticsEventJpaRepository jpa) {
-        this.jpa = jpa;
-    }
 
     @Override
     public LogisticsEvent save(LogisticsEvent event) {

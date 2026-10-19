@@ -1,5 +1,12 @@
 package com.trackflow.modules.logistics.domain;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.Accessors;
+
+@Getter
+@Accessors(fluent = true)
+@RequiredArgsConstructor
 public enum EventType {
     RECEIVED_AT_CENTER("AT_DISTRIBUTION_CENTER", "Recibido en centro"),
     DISPATCHED("IN_TRANSIT", "Despachado"),
@@ -8,19 +15,6 @@ public enum EventType {
     DELIVERED("DELIVERED", "Entregado");
 
     private final String resultingStatus;
-    private final String etiqueta;
-
-    EventType(String resultingStatus, String etiqueta) {
-        this.resultingStatus = resultingStatus;
-        this.etiqueta = etiqueta;
-    }
-
-    public String resultingStatus() {
-        return resultingStatus;
-    }
-
     /** Cómo se le nombra el movimiento al operador. */
-    public String etiqueta() {
-        return etiqueta;
-    }
+    private final String etiqueta;
 }

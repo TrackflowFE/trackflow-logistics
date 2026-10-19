@@ -5,11 +5,11 @@ import com.trackflow.modules.logistics.domain.EventType;
 import com.trackflow.modules.logistics.domain.FlujoLogistico;
 import com.trackflow.modules.logistics.domain.LogisticsEvent;
 import com.trackflow.modules.logistics.domain.TrackedShipment;
-import com.trackflow.modules.logistics.domain.UnknownShipmentException;
 import com.trackflow.shared.geografia.CatalogoDeCiudades;
 import com.trackflow.shared.geografia.Ciudad;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
  * vea una opción que el backend vaya a rechazar.
  */
 @Service
+@RequiredArgsConstructor
 public class ConsultarEstadoDelEnvio {
 
     private final TrackedShipmentRepository trackedShipments;
@@ -29,19 +30,8 @@ public class ConsultarEstadoDelEnvio {
     private final CatalogoDeCiudades ciudades;
     private final PlanificarRuta planificarRuta;
 
-    public ConsultarEstadoDelEnvio(TrackedShipmentRepository trackedShipments,
-            LogisticsEventRepository logisticsEvents, CatalogoDeCentros centros, CatalogoDeCiudades ciudades,
-            PlanificarRuta planificarRuta) {
-        this.trackedShipments = trackedShipments;
-        this.logisticsEvents = logisticsEvents;
-        this.centros = centros;
-        this.ciudades = ciudades;
-        this.planificarRuta = planificarRuta;
-    }
-
     public EstadoDelEnvio ejecutar(String trackingNumber) {
-        TrackedShipment envio = trackedShipments.porTrackingNumber(trackingNumber)
-                .orElseThrow(() -> new UnknownShipmentException(trackingNumber));
+        TrackedShipment envio = trackedShipments.exigir(trackingNumber);
 
         return desdeHistorial(envio, logisticsEvents.findHistorial(trackingNumber));
     }
@@ -55,30 +45,29 @@ public class ConsultarEstadoDelEnvio {
         Ciudad origen = ciudades.exigir(envio.getOriginCityId());
         Ciudad destino = ciudades.exigir(envio.getDestinationCityId());
 
-        LogisticsEvent ultimo = historial.isEmpty() ? null : historial.get(historial.size() - 1);
-        EventType ultimoTipo = ultimo == null ? null : ultimo.getType();
-        EventType penultimoTipo = historial.size() < 2 ? null : historial.get(historial.size() - 2).getType();
+        Optional<LogisticsEvent> ultimo = contandoDesdeElFinal(historial, 0);
+        EventType ultimoTipo = ultimo.map(LogisticsEvent::getType).orElse(null);
+        EventType penultimoTipo = contandoDesdeElFinal(historial, 1).map(LogisticsEvent::getType).orElse(null);
 
         // El centro del último movimiento dice dónde está el paquete. Los eventos
         // viejos, registrados cuando el punto era texto libre, no tienen centro: de
         // esos no se puede deducir la ciudad, así que se cae al origen del envío.
-        Optional<Centro> centroActual = ultimo == null || ultimo.getCenterId() == null
-                ? Optional.empty()
-                : centros.porId(ultimo.getCenterId());
+        Optional<Centro> centroActual = ultimo.map(LogisticsEvent::getCenterId).flatMap(centros::porId);
 
         Ciudad ciudadActual = centroActual
                 .map(centro -> ciudades.exigir(centro.getCityId()))
                 .orElse(origen);
 
         List<Ciudad> ruta = rutaHastaElDestino(ciudadActual, destino);
-        Ciudad siguienteParada = ruta.size() == 1 ? ruta.get(0) : ruta.get(1);
+        // La ruta empieza en la ciudad actual; si ya es el destino, la siguiente parada es él mismo.
+        Ciudad siguienteParada = ruta.get(Math.min(1, ruta.size() - 1));
 
         return new EstadoDelEnvio(
                 envio.getTrackingNumber(),
                 envio.getRegisteredAt(),
                 ultimoTipo,
                 FlujoLogistico.estadoTras(ultimoTipo, penultimoTipo),
-                ultimo == null ? null : ultimo.getOccurredAt(),
+                ultimo.map(LogisticsEvent::getOccurredAt).orElse(null),
                 centroActual.map(Centro::getId).orElse(null),
                 centroActual.map(Centro::getName).orElse(null),
                 ciudadActual,
@@ -87,6 +76,12 @@ public class ConsultarEstadoDelEnvio {
                 ruta,
                 siguienteParada,
                 FlujoLogistico.siguientesPermitidos(ultimoTipo, siguienteParada.id().equals(destino.id())));
+    }
+
+    /** El movimiento {@code posicion} lugares antes del último (0 es el último), si existe. */
+    private static Optional<LogisticsEvent> contandoDesdeElFinal(List<LogisticsEvent> historial, int posicion) {
+        int indice = historial.size() - 1 - posicion;
+        return indice < 0 ? Optional.empty() : Optional.of(historial.get(indice));
     }
 
     /**

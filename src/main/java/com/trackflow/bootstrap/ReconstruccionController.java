@@ -2,6 +2,7 @@ package com.trackflow.bootstrap;
 
 import com.trackflow.modules.logistics.application.RepublicarEventosLogisticos;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,13 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/admin")
+@RequiredArgsConstructor
 public class ReconstruccionController {
 
     private final RepublicarEventosLogisticos eventos;
-
-    public ReconstruccionController(RepublicarEventosLogisticos eventos) {
-        this.eventos = eventos;
-    }
 
     @PostMapping("/rebuild-projections")
     public Map<String, Integer> reconstruir() {

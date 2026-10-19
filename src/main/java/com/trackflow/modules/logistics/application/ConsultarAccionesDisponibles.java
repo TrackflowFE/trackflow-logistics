@@ -7,6 +7,7 @@ import com.trackflow.modules.logistics.domain.FlujoLogistico;
 import com.trackflow.shared.geografia.Ciudad;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
  * ({@link FlujoLogistico}), es imposible que se ofrezca algo que vaya a rechazarse.
  */
 @Service
+@RequiredArgsConstructor
 public class ConsultarAccionesDisponibles {
 
     private static final int LIMITE_CENTROS = 20;
@@ -40,11 +42,6 @@ public class ConsultarAccionesDisponibles {
 
     private final ConsultarEstadoDelEnvio estadoDelEnvio;
     private final CatalogoDeCentros centros;
-
-    public ConsultarAccionesDisponibles(ConsultarEstadoDelEnvio estadoDelEnvio, CatalogoDeCentros centros) {
-        this.estadoDelEnvio = estadoDelEnvio;
-        this.centros = centros;
-    }
 
     public Acciones ejecutar(String trackingNumber) {
         EstadoDelEnvio estado = estadoDelEnvio.ejecutar(trackingNumber);

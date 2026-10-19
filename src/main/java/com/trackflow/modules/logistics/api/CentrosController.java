@@ -7,6 +7,7 @@ import com.trackflow.modules.logistics.domain.CentroNoEncontradoException;
 import com.trackflow.shared.geografia.CatalogoDeCiudades;
 import com.trackflow.shared.geografia.Ciudad;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,17 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/centers")
+@RequiredArgsConstructor
 public class CentrosController {
 
     private static final int LIMITE = 20;
 
     private final CatalogoDeCentros centros;
     private final CatalogoDeCiudades ciudades;
-
-    public CentrosController(CatalogoDeCentros centros, CatalogoDeCiudades ciudades) {
-        this.centros = centros;
-        this.ciudades = ciudades;
-    }
 
     @GetMapping
     public List<CentroResponse> buscar(

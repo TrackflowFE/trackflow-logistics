@@ -6,6 +6,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * Sesión abierta con un token (HU-08). Se identifica por el jti del token: el token
@@ -13,6 +17,7 @@ import java.time.Instant;
  */
 @Entity
 @Table(name = "auth_sessions")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Sesion {
 
     @Id
@@ -20,6 +25,7 @@ public class Sesion {
     private String jti;
 
     @Column(nullable = false, length = 50, updatable = false)
+    @Getter
     private String username;
 
     @Column(nullable = false, updatable = false)
@@ -33,19 +39,12 @@ public class Sesion {
 
     private Instant closedAt;
 
-    protected Sesion() {
-    }
-
     public Sesion(String jti, String username, Instant createdAt, Instant expiresAt) {
         this.jti = jti;
         this.username = username;
         this.createdAt = createdAt;
         this.lastActivityAt = createdAt;
         this.expiresAt = expiresAt;
-    }
-
-    public String getUsername() {
-        return username;
     }
 
     boolean abierta() {
@@ -57,9 +56,7 @@ public class Sesion {
     }
 
     void cerrar(Instant ahora) {
-        if (closedAt == null) {
-            closedAt = ahora;
-        }
+        closedAt = Objects.requireNonNullElse(closedAt, ahora);
     }
 
     /**

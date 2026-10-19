@@ -1,5 +1,9 @@
 package com.trackflow.modules.logistics.domain;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.Accessors;
+
 /**
  * En qué ciudad debe estar el centro donde se registra un evento, según su tipo y el
  * punto del recorrido en que va el envío.
@@ -8,6 +12,9 @@ package com.trackflow.modules.logistics.domain;
  * del catálogo entero: la misma regla que valida el registro alimenta la lista que se
  * le ofrece, así nunca se le muestra una opción que el backend vaya a rechazar.
  */
+@RequiredArgsConstructor
+@Getter
+@Accessors(fluent = true)
 public enum CiudadEsperada {
 
     /** La ciudad de origen del envío: el primer recibido en centro ocurre ahí. */
@@ -27,12 +34,4 @@ public enum CiudadEsperada {
     SIGUIENTE_PARADA("la siguiente ciudad de la ruta del envío");
 
     private final String descripcion;
-
-    CiudadEsperada(String descripcion) {
-        this.descripcion = descripcion;
-    }
-
-    public String descripcion() {
-        return descripcion;
-    }
 }

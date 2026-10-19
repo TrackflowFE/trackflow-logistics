@@ -4,10 +4,13 @@ import com.trackflow.modules.logistics.application.ConsultarAccionesDisponibles.
 import com.trackflow.modules.logistics.application.ConsultarAccionesDisponibles.Acciones;
 import com.trackflow.modules.logistics.application.EstadoDelEnvio;
 import com.trackflow.modules.logistics.domain.CiudadEsperada;
+import com.trackflow.modules.logistics.domain.EventType;
 import com.trackflow.modules.logistics.domain.FlujoLogistico;
-import com.trackflow.shared.geografia.Ciudad;
 import java.time.Instant;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Lo que el operador puede hacer con un envío ahora mismo, ya resuelto: qué
@@ -24,13 +27,6 @@ public record AccionesDisponiblesResponse(
         CiudadResponse destination,
         List<CiudadResponse> plannedRoute,
         List<AccionResponse> actions) {
-
-    public record CiudadResponse(Long id, String name) {
-
-        static CiudadResponse from(Ciudad ciudad) {
-            return ciudad == null ? null : new CiudadResponse(ciudad.id(), ciudad.etiqueta());
-        }
-    }
 
     /** Dónde está el paquete. El centro es null si todavía no ha pasado por ninguno. */
     public record UbicacionResponse(Long centerId, String centerName, Long cityId, String cityName) {
@@ -51,13 +47,20 @@ public record AccionesDisponiblesResponse(
             String route) {
     }
 
+    /** El enum del dominio va en español; el contrato de la API, en inglés. */
+    private static final Map<CiudadEsperada, String> CIUDAD_ESPERADA_EN_INGLES = new EnumMap<>(Map.of(
+            CiudadEsperada.ORIGEN, "ORIGIN",
+            CiudadEsperada.DESTINO, "DESTINATION",
+            CiudadEsperada.ACTUAL, "CURRENT",
+            CiudadEsperada.SIGUIENTE_PARADA, "NEXT_STOP"));
+
     public static AccionesDisponiblesResponse from(Acciones acciones) {
         EstadoDelEnvio estado = acciones.estado();
 
         return new AccionesDisponiblesResponse(
                 estado.trackingNumber(),
                 estado.estado(),
-                estado.ultimoTipo() == null ? null : estado.ultimoTipo().name(),
+                Optional.ofNullable(estado.ultimoTipo()).map(EventType::name).orElse(null),
                 estado.ultimoMovimientoEn(),
                 new UbicacionResponse(
                         estado.centroActualId(),
@@ -75,21 +78,11 @@ public record AccionesDisponiblesResponse(
                 accion.tipo().name(),
                 accion.tipo().etiqueta(),
                 FlujoLogistico.estadoResultante(accion.tipo(), estado.ultimoTipo()),
-                ciudadEsperadaEnIngles(accion.ciudadEsperada()),
+                CIUDAD_ESPERADA_EN_INGLES.get(accion.ciudadEsperada()),
                 CiudadResponse.from(accion.ciudadDeLosCentros()),
                 accion.centros().stream()
                         .map(disponible -> CentroResponse.from(disponible.centro(), disponible.ciudad()))
                         .toList(),
                 accion.ruta());
-    }
-
-    /** El enum del dominio va en español; el contrato de la API, en inglés. */
-    private static String ciudadEsperadaEnIngles(CiudadEsperada ciudad) {
-        return switch (ciudad) {
-            case ORIGEN -> "ORIGIN";
-            case DESTINO -> "DESTINATION";
-            case ACTUAL -> "CURRENT";
-            case SIGUIENTE_PARADA -> "NEXT_STOP";
-        };
     }
 }
