@@ -57,62 +57,81 @@ public final class PlanificadorDeRuta {
         if (desde.equals(hasta)) {
             return Optional.of(RutaPlaneada.enDestino(desde));
         }
-
-        Map<Long, List<Tramo>> salidas = tramos.stream().collect(Collectors.groupingBy(Tramo::desdeCiudadId));
-
-        Map<Long, Pendiente> mejorHasta = new HashMap<>();
-        Map<Long, Long> anterior = new HashMap<>();
-        PriorityQueue<Pendiente> pendientes = new PriorityQueue<>(MAS_CERCANA_PRIMERO);
-
-        Pendiente inicio = new Pendiente(desde, 0, 0);
-        mejorHasta.put(desde, inicio);
-        pendientes.add(inicio);
-
-        while (!pendientes.isEmpty()) {
-            Pendiente actual = pendientes.poll();
-
-            // Una entrada vieja de la cola: ya se encontró un camino mejor a esta ciudad.
-            if (MAS_CERCANA_PRIMERO.compare(actual, mejorHasta.get(actual.ciudad())) > 0) {
-                continue;
-            }
-            if (actual.ciudad().equals(hasta)) {
-                return Optional.of(new RutaPlaneada(reconstruir(anterior, desde, hasta), actual.horas()));
-            }
-            avanzarDesde(actual, salidas.getOrDefault(actual.ciudad(), List.of()), mejorHasta, anterior, pendientes);
-        }
-
-        return Optional.empty();
+        return new Busqueda(tramos, desde).hasta(hasta);
     }
 
     /**
-     * Prueba cada tramo que sale de {@code actual} y encola la ciudad de llegada si por ahí
-     * se llega antes (o igual de rápido con menos tramos) que por el mejor camino conocido.
-     * Las dos pendientes comparadas son de la misma ciudad, así que el desempate por id del
-     * comparador no interviene.
+     * Una ejecución de Dijkstra desde una ciudad: el estado que antes vivía en variables
+     * locales de {@code planificar}, para que cada paso del algoritmo sea un método corto.
      */
-    private static void avanzarDesde(Pendiente actual, List<Tramo> salidas, Map<Long, Pendiente> mejorHasta,
-            Map<Long, Long> anterior, PriorityQueue<Pendiente> pendientes) {
-        for (Tramo tramo : salidas) {
-            Pendiente candidata = new Pendiente(tramo.hastaCiudadId(), actual.horas() + tramo.horas(),
-                    actual.tramos() + 1);
-            Pendiente conocida = mejorHasta.get(tramo.hastaCiudadId());
-            if (conocida == null || MAS_CERCANA_PRIMERO.compare(candidata, conocida) < 0) {
-                mejorHasta.put(tramo.hastaCiudadId(), candidata);
-                anterior.put(tramo.hastaCiudadId(), actual.ciudad());
-                pendientes.add(candidata);
+    private static final class Busqueda {
+
+        private final Long desde;
+        private final Map<Long, List<Tramo>> salidas;
+        private final Map<Long, Pendiente> mejorHasta = new HashMap<>();
+        private final Map<Long, Long> anterior = new HashMap<>();
+        private final PriorityQueue<Pendiente> pendientes = new PriorityQueue<>(MAS_CERCANA_PRIMERO);
+
+        Busqueda(Collection<Tramo> tramos, Long desde) {
+            this.desde = desde;
+            this.salidas = tramos.stream().collect(Collectors.groupingBy(Tramo::desdeCiudadId));
+            Pendiente inicio = new Pendiente(desde, 0, 0);
+            mejorHasta.put(desde, inicio);
+            pendientes.add(inicio);
+        }
+
+        Optional<RutaPlaneada> hasta(Long hasta) {
+            while (!pendientes.isEmpty()) {
+                Pendiente actual = pendientes.poll();
+                if (esVieja(actual)) {
+                    continue;
+                }
+                if (actual.ciudad().equals(hasta)) {
+                    return Optional.of(new RutaPlaneada(reconstruir(hasta), actual.horas()));
+                }
+                avanzarDesde(actual);
+            }
+            return Optional.empty();
+        }
+
+        /** Una entrada vieja de la cola: ya se encontró un camino mejor a esta ciudad. */
+        private boolean esVieja(Pendiente actual) {
+            return MAS_CERCANA_PRIMERO.compare(actual, mejorHasta.get(actual.ciudad())) > 0;
+        }
+
+        /**
+         * Prueba cada tramo que sale de {@code actual} y encola la ciudad de llegada si por ahí
+         * se llega antes (o igual de rápido con menos tramos) que por el mejor camino conocido.
+         * Las dos pendientes comparadas son de la misma ciudad, así que el desempate por id del
+         * comparador no interviene.
+         */
+        private void avanzarDesde(Pendiente actual) {
+            for (Tramo tramo : salidas.getOrDefault(actual.ciudad(), List.of())) {
+                Pendiente candidata = new Pendiente(tramo.hastaCiudadId(), actual.horas() + tramo.horas(),
+                        actual.tramos() + 1);
+                if (mejora(candidata)) {
+                    mejorHasta.put(tramo.hastaCiudadId(), candidata);
+                    anterior.put(tramo.hastaCiudadId(), actual.ciudad());
+                    pendientes.add(candidata);
+                }
             }
         }
-    }
 
-    private static List<Long> reconstruir(Map<Long, Long> anterior, Long desde, Long hasta) {
-        List<Long> ciudades = new ArrayList<>();
-        Long ciudad = hasta;
-        while (!ciudad.equals(desde)) {
-            ciudades.add(ciudad);
-            ciudad = anterior.get(ciudad);
+        private boolean mejora(Pendiente candidata) {
+            Pendiente conocida = mejorHasta.get(candidata.ciudad());
+            return conocida == null || MAS_CERCANA_PRIMERO.compare(candidata, conocida) < 0;
         }
-        ciudades.add(desde);
-        Collections.reverse(ciudades);
-        return ciudades;
+
+        private List<Long> reconstruir(Long hasta) {
+            List<Long> ciudades = new ArrayList<>();
+            Long ciudad = hasta;
+            while (!ciudad.equals(desde)) {
+                ciudades.add(ciudad);
+                ciudad = anterior.get(ciudad);
+            }
+            ciudades.add(desde);
+            Collections.reverse(ciudades);
+            return ciudades;
+        }
     }
 }
