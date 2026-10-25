@@ -11,6 +11,7 @@ import com.trackflow.modules.logistics.application.ConsultarHistorial;
 import com.trackflow.modules.logistics.application.ConsultarRutaDelEnvio;
 import com.trackflow.modules.logistics.application.EventoLogisticoEntrante;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,21 +28,13 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/shipments/{trackingNumber}")
+@RequiredArgsConstructor
 public class LogisticsEventController {
 
     private final AdmitirEventoLogistico admitirEventoLogistico;
     private final ConsultarHistorial consultarHistorial;
     private final ConsultarAccionesDisponibles consultarAccionesDisponibles;
     private final ConsultarRutaDelEnvio consultarRutaDelEnvio;
-
-    public LogisticsEventController(AdmitirEventoLogistico admitirEventoLogistico,
-            ConsultarHistorial consultarHistorial, ConsultarAccionesDisponibles consultarAccionesDisponibles,
-            ConsultarRutaDelEnvio consultarRutaDelEnvio) {
-        this.admitirEventoLogistico = admitirEventoLogistico;
-        this.consultarHistorial = consultarHistorial;
-        this.consultarAccionesDisponibles = consultarAccionesDisponibles;
-        this.consultarRutaDelEnvio = consultarRutaDelEnvio;
-    }
 
     /**
      * Admite un movimiento. Con la cabecera {@code Idempotency-Key}, reintentar la misma

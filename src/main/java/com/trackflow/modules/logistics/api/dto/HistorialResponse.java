@@ -1,5 +1,6 @@
 package com.trackflow.modules.logistics.api.dto;
 
+import com.trackflow.modules.logistics.domain.EventType;
 import com.trackflow.modules.logistics.domain.LogisticsEvent;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -25,8 +26,12 @@ public record HistorialResponse(
                 eventos.size(),
                 eventos.isEmpty() ? SIN_MOVIMIENTOS : null,
                 IntStream.range(0, eventos.size())
-                        .mapToObj(i -> EventoLogisticoResponse.from(eventos.get(i),
-                                i == 0 ? null : eventos.get(i - 1).getType()))
+                        .mapToObj(i -> EventoLogisticoResponse.from(eventos.get(i), tipoAnterior(eventos, i)))
                         .toList());
+    }
+
+    /** Tipo del movimiento previo al de la posición {@code i}; null para el primero. */
+    private static EventType tipoAnterior(List<LogisticsEvent> eventos, int i) {
+        return i == 0 ? null : eventos.get(i - 1).getType();
     }
 }

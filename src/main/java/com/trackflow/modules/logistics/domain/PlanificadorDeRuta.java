@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
+import java.util.stream.Collectors;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 /**
  * Calcula la ruta más corta entre dos ciudades sobre los tramos de la red (algoritmo de
@@ -30,6 +33,7 @@ import java.util.PriorityQueue;
  * No conoce la base de datos: recibe los tramos y devuelve la ruta, así que la regla
  * se puede razonar y probar sin infraestructura.
  */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class PlanificadorDeRuta {
 
     /** Ciudad por visitar con el costo acumulado para llegar a ella. */
@@ -41,9 +45,6 @@ public final class PlanificadorDeRuta {
             .comparingInt(Pendiente::horas)
             .thenComparingInt(Pendiente::tramos)
             .thenComparing(Pendiente::ciudad);
-
-    private PlanificadorDeRuta() {
-    }
 
     /**
      * @return la ruta de menor duración (y, entre las de igual duración, la de menos
@@ -57,10 +58,7 @@ public final class PlanificadorDeRuta {
             return Optional.of(RutaPlaneada.enDestino(desde));
         }
 
-        Map<Long, List<Tramo>> salidas = new HashMap<>();
-        for (Tramo tramo : tramos) {
-            salidas.computeIfAbsent(tramo.desdeCiudadId(), id -> new ArrayList<>()).add(tramo);
-        }
+        Map<Long, List<Tramo>> salidas = tramos.stream().collect(Collectors.groupingBy(Tramo::desdeCiudadId));
 
         Map<Long, Pendiente> mejorHasta = new HashMap<>();
         Map<Long, Long> anterior = new HashMap<>();
@@ -80,26 +78,30 @@ public final class PlanificadorDeRuta {
             if (actual.ciudad().equals(hasta)) {
                 return Optional.of(new RutaPlaneada(reconstruir(anterior, desde, hasta), actual.horas()));
             }
-
-            for (Tramo tramo : salidas.getOrDefault(actual.ciudad(), List.of())) {
-                Pendiente candidata = new Pendiente(tramo.hastaCiudadId(), actual.horas() + tramo.horas(),
-                        actual.tramos() + 1);
-                Pendiente conocida = mejorHasta.get(tramo.hastaCiudadId());
-                if (conocida == null || esMejor(candidata, conocida)) {
-                    mejorHasta.put(tramo.hastaCiudadId(), candidata);
-                    anterior.put(tramo.hastaCiudadId(), actual.ciudad());
-                    pendientes.add(candidata);
-                }
-            }
+            avanzarDesde(actual, salidas.getOrDefault(actual.ciudad(), List.of()), mejorHasta, anterior, pendientes);
         }
 
         return Optional.empty();
     }
 
-    /** Menos horas, o las mismas horas con menos tramos. */
-    private static boolean esMejor(Pendiente candidata, Pendiente conocida) {
-        return candidata.horas() < conocida.horas()
-                || (candidata.horas() == conocida.horas() && candidata.tramos() < conocida.tramos());
+    /**
+     * Prueba cada tramo que sale de {@code actual} y encola la ciudad de llegada si por ahí
+     * se llega antes (o igual de rápido con menos tramos) que por el mejor camino conocido.
+     * Las dos pendientes comparadas son de la misma ciudad, así que el desempate por id del
+     * comparador no interviene.
+     */
+    private static void avanzarDesde(Pendiente actual, List<Tramo> salidas, Map<Long, Pendiente> mejorHasta,
+            Map<Long, Long> anterior, PriorityQueue<Pendiente> pendientes) {
+        for (Tramo tramo : salidas) {
+            Pendiente candidata = new Pendiente(tramo.hastaCiudadId(), actual.horas() + tramo.horas(),
+                    actual.tramos() + 1);
+            Pendiente conocida = mejorHasta.get(tramo.hastaCiudadId());
+            if (conocida == null || MAS_CERCANA_PRIMERO.compare(candidata, conocida) < 0) {
+                mejorHasta.put(tramo.hastaCiudadId(), candidata);
+                anterior.put(tramo.hastaCiudadId(), actual.ciudad());
+                pendientes.add(candidata);
+            }
+        }
     }
 
     private static List<Long> reconstruir(Map<Long, Long> anterior, Long desde, Long hasta) {

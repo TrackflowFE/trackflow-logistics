@@ -8,6 +8,7 @@ import com.trackflow.modules.logistics.domain.MovimientoAntesDelRegistroExceptio
 import com.trackflow.modules.logistics.domain.MovimientoFueraDeOrdenException;
 import com.trackflow.modules.logistics.domain.TransicionInvalidaException;
 import com.trackflow.modules.logistics.domain.UnknownShipmentException;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -19,15 +20,12 @@ import org.springframework.stereotype.Component;
  * y lo entrega al mismo caso de uso que usa el adaptador REST.
  */
 @Component
+@RequiredArgsConstructor
 public class RabbitMQEventoLogisticoListener {
 
     private static final Logger log = LoggerFactory.getLogger(RabbitMQEventoLogisticoListener.class);
 
     private final RegistrarEventoLogistico registrarEventoLogistico;
-
-    public RabbitMQEventoLogisticoListener(RegistrarEventoLogistico registrarEventoLogistico) {
-        this.registrarEventoLogistico = registrarEventoLogistico;
-    }
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE)
     public void recibir(EventoLogisticoMensaje mensaje) {

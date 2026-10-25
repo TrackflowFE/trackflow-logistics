@@ -3,6 +3,7 @@ package com.trackflow.modules.logistics.application;
 import com.trackflow.modules.logistics.domain.LogisticsEvent;
 import com.trackflow.modules.logistics.domain.UnknownShipmentException;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,16 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
  * distintas para quien consulta.
  */
 @Service
+@RequiredArgsConstructor
 public class ConsultarHistorial {
 
     private final LogisticsEventRepository logisticsEvents;
     private final TrackedShipmentRepository trackedShipments;
-
-    public ConsultarHistorial(LogisticsEventRepository logisticsEvents,
-            TrackedShipmentRepository trackedShipments) {
-        this.logisticsEvents = logisticsEvents;
-        this.trackedShipments = trackedShipments;
-    }
 
     @Transactional(readOnly = true)
     public List<LogisticsEvent> ejecutar(String trackingNumber) {

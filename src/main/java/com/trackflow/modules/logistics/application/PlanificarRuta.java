@@ -3,6 +3,7 @@ package com.trackflow.modules.logistics.application;
 import com.trackflow.modules.logistics.domain.PlanificadorDeRuta;
 import com.trackflow.modules.logistics.domain.RutaPlaneada;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -13,13 +14,10 @@ import org.springframework.stereotype.Service;
  * nueva ruta sin migrar datos.
  */
 @Service
+@RequiredArgsConstructor
 public class PlanificarRuta {
 
     private final RedDeRutas red;
-
-    public PlanificarRuta(RedDeRutas red) {
-        this.red = red;
-    }
 
     public Optional<RutaPlaneada> entre(Long desdeCiudadId, Long hastaCiudadId) {
         return PlanificadorDeRuta.planificar(red.tramosActivos(), desdeCiudadId, hastaCiudadId);

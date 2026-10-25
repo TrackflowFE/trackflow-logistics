@@ -9,9 +9,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Objects;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(name = "logistics_events")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class LogisticsEvent {
 
     @Id
@@ -104,12 +110,12 @@ public class LogisticsEvent {
     public record Parada(Long cityId, String cityName, Integer horasDelTramo) {
     }
 
+    /** Lo que se guarda en los eventos que no son un despacho: ninguna siguiente parada. */
+    private static final Parada SIN_PARADA = new Parada(null, null, null);
+
     /** Lo que reporta el operador, antes de que el sistema le ponga fecha de registro. */
     public record Reporte(String eventId, String trackingNumber, EventType type, Lugar lugar, String notes,
             String delivererName, Instant occurredAt) {
-    }
-
-    protected LogisticsEvent() {
     }
 
     private LogisticsEvent(Reporte reporte, Parada siguienteParada, Instant registeredAt) {
@@ -124,11 +130,9 @@ public class LogisticsEvent {
         this.delivererName = reporte.delivererName();
         this.occurredAt = reporte.occurredAt();
         this.registeredAt = registeredAt;
-        if (siguienteParada != null) {
-            this.nextStopCityId = siguienteParada.cityId();
-            this.nextStopCity = siguienteParada.cityName();
-            this.plannedLegHours = siguienteParada.horasDelTramo();
-        }
+        this.nextStopCityId = siguienteParada.cityId();
+        this.nextStopCity = siguienteParada.cityName();
+        this.plannedLegHours = siguienteParada.horasDelTramo();
     }
 
     /**
@@ -148,67 +152,9 @@ public class LogisticsEvent {
             throw new FechaDeMovimientoInvalidaException(occurredAt, registeredAt);
         }
 
-        return new LogisticsEvent(reporte, reporte.type() == EventType.DISPATCHED ? siguienteParada : null,
-                registeredAt);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getEventId() {
-        return eventId;
-    }
-
-    public String getTrackingNumber() {
-        return trackingNumber;
-    }
-
-    public EventType getType() {
-        return type;
-    }
-
-    public String getPoint() {
-        return point;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
-    public Long getCenterId() {
-        return centerId;
-    }
-
-    public Long getCityId() {
-        return cityId;
-    }
-
-    public String getCityName() {
-        return cityName;
-    }
-
-    public Long getNextStopCityId() {
-        return nextStopCityId;
-    }
-
-    public String getNextStopCity() {
-        return nextStopCity;
-    }
-
-    public Integer getPlannedLegHours() {
-        return plannedLegHours;
-    }
-
-    public String getDelivererName() {
-        return delivererName;
-    }
-
-    public Instant getOccurredAt() {
-        return occurredAt;
-    }
-
-    public Instant getRegisteredAt() {
-        return registeredAt;
+        Parada parada = reporte.type() == EventType.DISPATCHED
+                ? Objects.requireNonNullElse(siguienteParada, SIN_PARADA)
+                : SIN_PARADA;
+        return new LogisticsEvent(reporte, parada, registeredAt);
     }
 }

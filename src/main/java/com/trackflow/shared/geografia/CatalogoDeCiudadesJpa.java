@@ -2,32 +2,29 @@ package com.trackflow.shared.geografia;
 
 import java.util.List;
 import java.util.Optional;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Repository
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 class CatalogoDeCiudadesJpa implements CatalogoDeCiudades {
 
     private final CiudadJpaRepository jpa;
 
-    CatalogoDeCiudadesJpa(CiudadJpaRepository jpa) {
-        this.jpa = jpa;
-    }
-
     @Override
     @Transactional(readOnly = true)
     public Optional<Ciudad> porId(Long id) {
-        if (id == null) {
-            return Optional.empty();
-        }
-        return jpa.findById(id).map(CiudadRegistrada::toCiudad);
+        return Optional.ofNullable(id).flatMap(jpa::findById).map(CiudadRegistrada::toCiudad);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Ciudad> buscar(String texto, int limite) {
-        if (texto == null || texto.isBlank()) {
+        if (!StringUtils.hasText(texto)) {
             return List.of();
         }
         return jpa.buscar(texto.trim(), Limit.of(limite)).stream()

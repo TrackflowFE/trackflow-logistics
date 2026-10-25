@@ -7,6 +7,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 /**
  * El tramo tal como está en la base. Se carga con las migraciones y la aplicación solo
@@ -14,6 +16,7 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "logistics_route_legs")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 class TramoDeRuta {
 
     @Id
@@ -31,9 +34,6 @@ class TramoDeRuta {
 
     @Column(nullable = false)
     private boolean active;
-
-    protected TramoDeRuta() {
-    }
 
     Tramo toTramo() {
         return new Tramo(fromCityId, toCityId, hours);

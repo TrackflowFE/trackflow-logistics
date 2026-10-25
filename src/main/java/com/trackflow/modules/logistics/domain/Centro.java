@@ -8,6 +8,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * Punto de la cadena logística: centro de distribución, punto de recolección u
@@ -16,7 +19,9 @@ import jakarta.persistence.Table;
  * aplicación solo lo lee: no hay caso de uso que cree centros.
  */
 @Entity
+@Getter
 @Table(name = "logistics_centers")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Centro {
 
     @Id
@@ -38,31 +43,4 @@ public class Centro {
 
     @Column(nullable = false)
     private boolean active;
-
-    protected Centro() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public TipoCentro getType() {
-        return type;
-    }
-
-    public Long getCityId() {
-        return cityId;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
 }

@@ -6,6 +6,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 /**
  * El catálogo tal como está en la base. Se carga con las migraciones y la aplicación
@@ -13,6 +15,7 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "cities")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CiudadRegistrada {
 
     @Id
@@ -24,9 +27,6 @@ public class CiudadRegistrada {
 
     @Column(nullable = false, length = 120)
     private String department;
-
-    protected CiudadRegistrada() {
-    }
 
     Ciudad toCiudad() {
         return new Ciudad(id, name, department);

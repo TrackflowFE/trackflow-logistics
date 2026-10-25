@@ -4,8 +4,10 @@ import com.trackflow.modules.logistics.application.ConsultarRutaDelEnvio.EstadoP
 import com.trackflow.modules.logistics.application.ConsultarRutaDelEnvio.Parada;
 import com.trackflow.modules.logistics.application.ConsultarRutaDelEnvio.RutaDelEnvio;
 import com.trackflow.modules.logistics.application.ConsultarRutaDelEnvio.TipoParada;
-import com.trackflow.shared.geografia.Ciudad;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Itinerario del envío: las ciudades por las que pasó y las que le faltan, con las
@@ -22,13 +24,6 @@ public record RutaDelEnvioResponse(
         int pendingStopovers,
         List<ParadaResponse> stops) {
 
-    public record CiudadResponse(Long id, String name) {
-
-        static CiudadResponse from(Ciudad ciudad) {
-            return ciudad == null ? null : new CiudadResponse(ciudad.id(), ciudad.etiqueta());
-        }
-    }
-
     /**
      * @param type ORIGIN, STOPOVER o DESTINATION
      * @param status VISITED, CURRENT o PENDING
@@ -36,34 +31,28 @@ public record RutaDelEnvioResponse(
     public record ParadaResponse(Long cityId, String cityName, String type, String status) {
 
         static ParadaResponse from(Parada parada) {
-            return new ParadaResponse(parada.ciudad().id(), parada.ciudad().etiqueta(), tipo(parada.tipo()),
-                    estado(parada.estado()));
+            return new ParadaResponse(parada.ciudad().id(), parada.ciudad().etiqueta(),
+                    TIPOS.get(parada.tipo()), ESTADOS.get(parada.estado()));
         }
     }
+
+    /** El enum del dominio va en español; el contrato de la API, en inglés. */
+    private static final Map<TipoParada, String> TIPOS = new EnumMap<>(Map.of(
+            TipoParada.ORIGEN, "ORIGIN",
+            TipoParada.ESCALA, "STOPOVER",
+            TipoParada.DESTINO, "DESTINATION"));
+
+    private static final Map<EstadoParada, String> ESTADOS = new EnumMap<>(Map.of(
+            EstadoParada.RECORRIDA, "VISITED",
+            EstadoParada.ACTUAL, "CURRENT",
+            EstadoParada.PENDIENTE, "PENDING"));
 
     public static RutaDelEnvioResponse from(RutaDelEnvio ruta) {
         return new RutaDelEnvioResponse(
                 ruta.trackingNumber(),
                 ruta.estado(),
-                CiudadResponse.from(ruta.siguienteParada()),
+                Optional.ofNullable(ruta.siguienteParada()).map(CiudadResponse::from).orElse(null),
                 ruta.escalasPendientes(),
                 ruta.paradas().stream().map(ParadaResponse::from).toList());
-    }
-
-    /** El enum del dominio va en español; el contrato de la API, en inglés. */
-    private static String tipo(TipoParada tipo) {
-        return switch (tipo) {
-            case ORIGEN -> "ORIGIN";
-            case ESCALA -> "STOPOVER";
-            case DESTINO -> "DESTINATION";
-        };
-    }
-
-    private static String estado(EstadoParada estado) {
-        return switch (estado) {
-            case RECORRIDA -> "VISITED";
-            case ACTUAL -> "CURRENT";
-            case PENDIENTE -> "PENDING";
-        };
     }
 }

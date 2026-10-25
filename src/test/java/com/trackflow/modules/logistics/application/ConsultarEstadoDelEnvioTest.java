@@ -34,6 +34,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -43,7 +44,8 @@ class ConsultarEstadoDelEnvioTest {
     private static final Map<Long, Ciudad> CATALOGO = Map.of(1L, MEDELLIN, 2L, BOGOTA, 3L, CALI, 4L, MANIZALES);
     private static final Instant T1 = REGISTRO.plusSeconds(3600);
 
-    @Mock
+    // exigir() es un método por defecto del repositorio: el mock debe ejecutarlo de verdad.
+    @Mock(answer = Answers.CALLS_REAL_METHODS)
     private TrackedShipmentRepository trackedShipments;
 
     @Mock

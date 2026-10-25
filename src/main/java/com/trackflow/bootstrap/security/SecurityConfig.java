@@ -1,5 +1,6 @@
 package com.trackflow.bootstrap.security;
 
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -19,15 +20,12 @@ import org.springframework.security.web.SecurityFilterChain;
  * credencial del cliente. La protección se desactiva solo con TRACKFLOW_SECURITY_ENABLED=false.
  */
 @Configuration
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final SecurityProperties propiedades;
-
-    public SecurityConfig(SecurityProperties propiedades) {
-        this.propiedades = propiedades;
-    }
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) {

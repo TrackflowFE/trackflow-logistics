@@ -7,13 +7,15 @@ import com.trackflow.modules.logistics.domain.EventType;
 import com.trackflow.modules.logistics.domain.FechaDeMovimientoInvalidaException;
 import com.trackflow.modules.logistics.domain.LogisticsEvent;
 import com.trackflow.modules.logistics.domain.TrackedShipment;
-import com.trackflow.modules.logistics.domain.UnknownShipmentException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * Admite un evento reportado por un punto de la cadena y lo encola.
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
  * silencio en la cola de reintentos. El registro las vuelve a aplicar al consumir.
  */
 @Service
+@RequiredArgsConstructor
 public class AdmitirEventoLogistico {
 
     /**
@@ -48,35 +51,21 @@ public class AdmitirEventoLogistico {
     private final EventoLogisticoPublisher publisher;
     private final Clock clock;
 
-    public AdmitirEventoLogistico(TrackedShipmentRepository trackedShipments,
-            LogisticsEventRepository logisticsEvents, ConsultarEstadoDelEnvio estadoDelEnvio,
-            ValidadorDeRecorrido validador, EventoLogisticoPublisher publisher, Clock clock) {
-        this.trackedShipments = trackedShipments;
-        this.logisticsEvents = logisticsEvents;
-        this.estadoDelEnvio = estadoDelEnvio;
-        this.validador = validador;
-        this.publisher = publisher;
-        this.clock = clock;
-    }
-
     public EventoLogisticoEntrante ejecutar(Command command) {
-        TrackedShipment envio = trackedShipments.porTrackingNumber(command.trackingNumber())
-                .orElseThrow(() -> new UnknownShipmentException(command.trackingNumber()));
+        TrackedShipment envio = trackedShipments.exigir(command.trackingNumber());
 
         // Un reintento (por ejemplo, tras un timeout) con una clave que ya se registró
         // recibe el mismo movimiento en vez de crear otro. Se resuelve antes de validar
         // el recorrido: el envío ya avanzó con ese movimiento y validarlo de nuevo lo
         // rechazaría como transición inválida.
         String clave = normalizar(command.claveIdempotencia());
-        if (clave != null) {
-            Optional<LogisticsEvent> yaRegistrado = logisticsEvents.porEventId(clave);
-            if (yaRegistrado.isPresent()) {
-                return comoEntrante(yaRegistrado.get(), command.trackingNumber());
-            }
+        Optional<LogisticsEvent> yaRegistrado = Optional.ofNullable(clave).flatMap(logisticsEvents::porEventId);
+        if (yaRegistrado.isPresent()) {
+            return comoEntrante(yaRegistrado.get(), command.trackingNumber());
         }
 
         Instant ahora = clock.instant();
-        Instant ocurridoEn = command.ocurridoEn() == null ? ahora : command.ocurridoEn();
+        Instant ocurridoEn = Objects.requireNonNullElse(command.ocurridoEn(), ahora);
 
         if (ocurridoEn.isAfter(ahora)) {
             throw new FechaDeMovimientoInvalidaException(ocurridoEn, ahora);
@@ -87,7 +76,7 @@ public class AdmitirEventoLogistico {
         LugarValidado lugar = validador.validar(estado, command.tipo(), command.centroId(), ocurridoEn);
 
         EventoLogisticoEntrante evento = new EventoLogisticoEntrante(
-                clave != null ? clave : UUID.randomUUID().toString(),
+                Objects.requireNonNullElse(clave, UUID.randomUUID().toString()),
                 command.trackingNumber(),
                 command.tipo(),
                 lugar.centro().getId(),
@@ -104,7 +93,7 @@ public class AdmitirEventoLogistico {
     }
 
     private static String normalizar(String clave) {
-        if (clave == null || clave.isBlank()) {
+        if (!StringUtils.hasText(clave)) {
             return null;
         }
         String recortada = clave.trim();

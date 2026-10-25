@@ -26,7 +26,7 @@ public record RutaPlaneada(List<Long> ciudades, int horas) {
      * está en el destino, es el destino mismo.
      */
     public Long siguienteParada() {
-        return ciudades.size() == 1 ? ciudades.get(0) : ciudades.get(1);
+        return ciudades.get(Math.min(1, ciudades.size() - 1));
     }
 
     public Long destino() {
