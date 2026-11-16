@@ -7,10 +7,12 @@ import com.trackflow.modules.logistics.domain.EventType;
 import com.trackflow.modules.logistics.domain.FlujoLogistico;
 import com.trackflow.modules.logistics.domain.MovimientoAntesDelRegistroException;
 import com.trackflow.modules.logistics.domain.MovimientoFueraDeOrdenException;
+import com.trackflow.modules.logistics.domain.RecogidaFueraDeCiudadDeOrigenException;
 import com.trackflow.modules.logistics.domain.TransicionInvalidaException;
 import com.trackflow.shared.geografia.CatalogoDeCiudades;
 import com.trackflow.shared.geografia.Ciudad;
 import java.time.Instant;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -46,6 +48,14 @@ public class ValidadorDeRecorrido {
         return new LugarValidado(centro, ciudadCentro);
     }
 
+    public Ciudad validarRecogida(EstadoDelEnvio estado, Long ciudadId, Instant ocurridoEn) {
+        validarTransicion(estado, EventType.PICKED_UP, ocurridoEn);
+        if (!Objects.equals(ciudadId, estado.origen().id())) {
+            throw new RecogidaFueraDeCiudadDeOrigenException(ciudadId, estado.origen().id());
+        }
+        return estado.origen();
+    }
+
     /**
      * En el orden correcto, acorde con la ruta (tras un despacho, llegada si la
      * siguiente parada es el destino, hub si no) y sin retroceder en el tiempo.
@@ -62,7 +72,8 @@ public class ValidadorDeRecorrido {
 
         if (!estado.siguientesPermitidos().contains(tipo)) {
             throw new TransicionInvalidaException(estado.trackingNumber(), estado.estado(), tipo,
-                    estado.siguientesPermitidos());
+                    estado.siguientesPermitidos().stream().filter(EventType::reportablePorOperador)
+                            .collect(java.util.stream.Collectors.toSet()));
         }
 
         if (estado.ultimoMovimientoEn() != null && ocurridoEn.isBefore(estado.ultimoMovimientoEn())) {

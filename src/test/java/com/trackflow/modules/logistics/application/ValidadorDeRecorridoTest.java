@@ -23,6 +23,7 @@ import com.trackflow.modules.logistics.domain.EventType;
 import com.trackflow.modules.logistics.domain.FlujoLogistico;
 import com.trackflow.modules.logistics.domain.MovimientoAntesDelRegistroException;
 import com.trackflow.modules.logistics.domain.MovimientoFueraDeOrdenException;
+import com.trackflow.modules.logistics.domain.RecogidaFueraDeCiudadDeOrigenException;
 import com.trackflow.modules.logistics.domain.TipoCentro;
 import com.trackflow.modules.logistics.domain.TransicionInvalidaException;
 import com.trackflow.shared.geografia.CatalogoDeCiudades;
@@ -85,6 +86,36 @@ class ValidadorDeRecorridoTest {
 
         assertThat(lugar.centro()).isSameAs(cdMedellin);
         assertThat(lugar.ciudad()).isEqualTo(MEDELLIN);
+    }
+
+    @Test
+    void validaRecogidaEnOrigenSinConsultarCentros() {
+        assertThat(validador.validarRecogida(estado(null, null, MEDELLIN, null), MEDELLIN.id(), DESPUES))
+                .isEqualTo(MEDELLIN);
+        verify(centros, never()).exigir(anyLong());
+    }
+
+    @Test
+    void rechazaRecogidaEnOtraCiudadAntesDelRegistroOTrasUnMovimiento() {
+        EstadoDelEnvio registrado = estado(null, null, MEDELLIN, null);
+        EstadoDelEnvio recibido = estado(EventType.RECEIVED_AT_CENTER, null, MEDELLIN, DESPUES);
+        assertThatThrownBy(() -> validador.validarRecogida(registrado, BOGOTA.id(), DESPUES))
+                .isInstanceOf(RecogidaFueraDeCiudadDeOrigenException.class);
+        assertThatThrownBy(() -> validador.validarRecogida(registrado, MEDELLIN.id(), REGISTRO.minusSeconds(1)))
+                .isInstanceOf(MovimientoAntesDelRegistroException.class);
+        assertThatThrownBy(() -> validador.validarRecogida(recibido, MEDELLIN.id(), DESPUES.plusSeconds(1)))
+                .isInstanceOf(TransicionInvalidaException.class);
+    }
+
+    @Test
+    void recepcionTrasRecogidaExigeCentroEnOrigen() {
+        EstadoDelEnvio recogido = estado(EventType.PICKED_UP, null, MEDELLIN, DESPUES);
+        when(centros.exigir(10L)).thenReturn(cdMedellin);
+        when(centros.exigir(40L)).thenReturn(cdManizales);
+        assertThat(validador.validar(recogido, EventType.RECEIVED_AT_CENTER, 10L, DESPUES.plusSeconds(1)).ciudad())
+                .isEqualTo(MEDELLIN);
+        assertThatThrownBy(() -> validador.validar(recogido, EventType.RECEIVED_AT_CENTER, 40L,
+                DESPUES.plusSeconds(1))).isInstanceOf(CentroFueraDeCiudadException.class);
     }
 
     @Test

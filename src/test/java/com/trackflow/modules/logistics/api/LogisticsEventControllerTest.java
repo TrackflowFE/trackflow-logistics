@@ -147,6 +147,15 @@ class LogisticsEventControllerTest {
     }
 
     @Test
+    void recogidaNoSePuedeReportarPorRest() throws Exception {
+        mvc.perform(post("/api/shipments/{tn}/events", TN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cuerpo("PICKED_UP", 10L, null)))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(admitir);
+    }
+
+    @Test
     void unTipoFueraDelCatalogoEsUnValorNoAdmitido() throws Exception {
         mvc.perform(post("/api/shipments/{tn}/events", TN)
                         .contentType(MediaType.APPLICATION_JSON)

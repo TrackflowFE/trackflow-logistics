@@ -8,6 +8,7 @@ que se conserva como respaldo. Responsables: Eyner Gómez y Julián Monsalve.
 |---|---|
 | HU-02 | Registrar un evento logístico (`POST /api/shipments/{tn}/events`) |
 | HU-04 | Consultar el historial de movimientos (`GET /api/shipments/{tn}/events`) |
+| HU-20 | Registrar en custodia un envío recogido a domicilio |
 
 Además lleva la red logística: centros, rutas entre ciudades, validación del recorrido
 (cada movimiento tiene que encajar en la ruta planeada) e itinerario del envío.
@@ -44,10 +45,24 @@ compartido `trackflow.events` (topic), en JSON.
 | Evento | Clave | Esta API |
 |---|---|---|
 | Envío creado (`EnvioCreadoEvent`) | `shipment.created` | Lo **consume** en `trackflow.logistics.shipment-created` para conocer origen, destino y fecha de registro del envío |
+| Recogida completada (`PickupCompletedEvent`) | `pickup.completed` | Lo **consume** en `trackflow.logistics.pickup-completed` y registra `PICKED_UP` |
 | Evento logístico registrado (`EventoLogisticoRegistradoEvent`) | `logistics.event.registered` | Lo **publica** después de guardar el movimiento; lo consumen Envíos y Reportes |
 
-Los dos contratos (`shared/events`) son idénticos en las tres APIs y no cambian sin avisar
-a los otros responsables. Lo que falla tras 4 intentos va a `trackflow.logistics.events.dlq`.
+Los contratos compartidos (`shared/events`) deben coincidir con sus productores y consumidores.
+`PICKED_UP` solo se admite por el evento de recogida, no por el POST de movimientos;
+se guarda sin centro, en la ciudad de origen, con el punto genérico `Recogida a domicilio`
+y deja el envío `IN_CUSTODY`. La recepción posterior debe ocurrir en un centro de origen
+y deja `AT_DISTRIBUTION_CENTER`, no tránsito. Las reentregas se deduplican por
+`pickup:<pickupNumber>`.
+
+Si `pickup.completed` llega antes de `shipment.created`, se reintenta con la política
+general (4 intentos, intervalos de 1, 2 y 4 segundos). Si el envío aún no aparece, el
+mensaje va a `trackflow.logistics.events.dlq` y debe reprocesarse cuando exista el envío.
+Los errores de datos o recorrido también van a esa DLQ. Hay que desplegar esta API y su
+binding antes de publicar recogidas, pues el exchange no conserva mensajes sin cola.
+La publicación del evento logístico se hace después del commit y no usa outbox: un fallo
+antes de publicarlo puede requerir reconstruir las proyecciones; una reentrega del mismo
+`pickup.completed` no vuelve a publicar un movimiento ya guardado.
 
 La cola interna de solicitudes de registro (`logistics.api.requests.queue`, exchange
 `logistics.api.topic`) es solo de esta API y tiene un nombre distinto al del monolito.
@@ -70,6 +85,8 @@ Base única de Supabase. Esta API no ejecuta migraciones (sin Flyway, Hibernate 
 | `TRACKFLOW_JWT_SECRET` | El mismo de las otras dos APIs (mínimo 32 caracteres) |
 | `TRACKFLOW_CORS_ORIGINS` | Dominio del frontend; por defecto `http://localhost:5173` |
 | `TRACKFLOW_SECURITY_ENABLED` | `true` (solo `false` en local, sin token) |
+| `TRACKFLOW_PICKUP_COMPLETED_KEY` | Clave de integración; por defecto `pickup.completed` |
+| `TRACKFLOW_LOGISTICS_PICKUP_QUEUE` | Cola de recogidas; por defecto `trackflow.logistics.pickup-completed` |
 
 Las credenciales van en las variables del servicio de Render, nunca en el repositorio.
 

@@ -52,6 +52,9 @@ public class AdmitirEventoLogistico {
     private final Clock clock;
 
     public EventoLogisticoEntrante ejecutar(Command command) {
+        if (command.tipo() == null || !command.tipo().reportablePorOperador()) {
+            throw new IllegalArgumentException("El tipo de evento no puede reportarse por el operador");
+        }
         TrackedShipment envio = trackedShipments.exigir(command.trackingNumber());
 
         // Un reintento (por ejemplo, tras un timeout) con una clave que ya se registró
@@ -61,6 +64,9 @@ public class AdmitirEventoLogistico {
         String clave = normalizar(command.claveIdempotencia());
         Optional<LogisticsEvent> yaRegistrado = Optional.ofNullable(clave).flatMap(logisticsEvents::porEventId);
         if (yaRegistrado.isPresent()) {
+            if (!yaRegistrado.get().getType().reportablePorOperador()) {
+                throw new ClaveDeIdempotenciaEnUsoException(clave, command.trackingNumber());
+            }
             return comoEntrante(yaRegistrado.get(), command.trackingNumber());
         }
 

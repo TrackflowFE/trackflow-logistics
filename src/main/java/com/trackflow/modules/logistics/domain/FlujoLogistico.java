@@ -32,12 +32,12 @@ public final class FlujoLogistico {
      */
     public static final String ESTADO_REGISTRADO = "REGISTERED";
 
-    /** Lo único que puede pasarle a un envío recién registrado es entrar a un centro. */
-    private static final Set<EventType> DESDE_REGISTRADO = EnumSet.of(EventType.RECEIVED_AT_CENTER);
+    private static final Set<EventType> DESDE_REGISTRADO = EnumSet.of(EventType.RECEIVED_AT_CENTER, EventType.PICKED_UP);
 
     private static final Map<EventType, Set<EventType>> SIGUIENTES = new EnumMap<>(EventType.class);
 
     static {
+        SIGUIENTES.put(EventType.PICKED_UP, EnumSet.of(EventType.RECEIVED_AT_CENTER));
         // De un centro solo se sale despachando.
         SIGUIENTES.put(EventType.RECEIVED_AT_CENTER, EnumSet.of(EventType.DISPATCHED));
         // En tránsito puede llegar al destino, o a un hub intermedio y seguir.
@@ -92,14 +92,14 @@ public final class FlujoLogistico {
      * Estado que deja un movimiento de tipo {@code tipo} cuando el movimiento previo
      * del envío fue {@code anterior} (null si es el primero).
      *
-     * El primer RECEIVED_AT_CENTER es la entrada al centro de origen. Uno posterior
-     * es un transbordo en un hub: el paquete sigue en camino hacia su destino, así que
+     * RECEIVED_AT_CENTER tras un despacho es un transbordo en un hub: el paquete sigue
+     * en camino hacia su destino, así que
      * el envío se queda EN TRÁNSITO. Si dejara AT_DISTRIBUTION_CENTER, como antes,
      * el cliente vería que su paquete volvió al centro de origen, y el progreso
      * retrocedería una etapa.
      */
     public static String estadoResultante(EventType tipo, EventType anterior) {
-        if (tipo == EventType.RECEIVED_AT_CENTER && anterior != null) {
+        if (tipo == EventType.RECEIVED_AT_CENTER && anterior == EventType.DISPATCHED) {
             return EventType.DISPATCHED.resultingStatus();
         }
         return tipo.resultingStatus();
@@ -107,13 +107,14 @@ public final class FlujoLogistico {
 
     /**
      * Ciudad en que debe estar el centro del movimiento. Depende del tipo y de si el
-     * envío ya se movió: el primer RECEIVED_AT_CENTER es la entrada al centro de
-     * origen, mientras que uno posterior es un hub de paso, y debe ser la siguiente
-     * ciudad de la ruta.
+     * movimiento previo: tras una recogida o sin movimientos es el centro de origen;
+     * tras un despacho es un hub de paso en la siguiente ciudad de la ruta.
      */
     public static CiudadEsperada ciudadEsperada(EventType tipo, EventType ultimo) {
         return switch (tipo) {
-            case RECEIVED_AT_CENTER -> ultimo == null ? CiudadEsperada.ORIGEN : CiudadEsperada.SIGUIENTE_PARADA;
+            case RECEIVED_AT_CENTER -> ultimo == null || ultimo == EventType.PICKED_UP
+                    ? CiudadEsperada.ORIGEN : CiudadEsperada.SIGUIENTE_PARADA;
+            case PICKED_UP -> CiudadEsperada.ORIGEN;
             case DISPATCHED -> CiudadEsperada.ACTUAL;
             case ARRIVED_AT_DESTINATION_CENTER, OUT_FOR_DELIVERY, DELIVERED -> CiudadEsperada.DESTINO;
         };
