@@ -1,6 +1,7 @@
 package com.trackflow.modules.logistics.application;
 
 import com.trackflow.modules.logistics.application.ValidadorDeRecorrido.LugarValidado;
+import com.trackflow.modules.logistics.domain.EventType;
 import com.trackflow.modules.logistics.domain.FechaDeMovimientoInvalidaException;
 import com.trackflow.modules.logistics.domain.FlujoLogistico;
 import com.trackflow.modules.logistics.domain.LogisticsEvent;
@@ -9,6 +10,8 @@ import com.trackflow.modules.logistics.domain.Tramo;
 import com.trackflow.modules.logistics.domain.UnknownShipmentException;
 import com.trackflow.shared.events.EventPublisher;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
+import com.trackflow.shared.events.PickupCompletedEvent;
+import com.trackflow.shared.geografia.Ciudad;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -63,6 +66,10 @@ public class RegistrarEventoLogistico {
         TrackedShipment envio = trackedShipments.porTrackingNumberParaActualizar(entrante.trackingNumber())
                 .orElseThrow(() -> new UnknownShipmentException(entrante.trackingNumber()));
 
+        if (!entrante.tipo().reportablePorOperador()) {
+            throw new IllegalArgumentException("El tipo de evento no puede registrarse por esta cola");
+        }
+
         Instant now = clock.instant();
         if (entrante.ocurridoEn() == null || entrante.ocurridoEn().isAfter(now)) {
             throw new FechaDeMovimientoInvalidaException(entrante.ocurridoEn(), now);
@@ -86,11 +93,44 @@ public class RegistrarEventoLogistico {
                         horasDelTramo(estado.ciudadActual().id(), estado.siguienteParada().id())),
                 now));
 
+        publicar(saved, estado.ultimoTipo(), now);
+
+        return Optional.of(saved);
+    }
+
+    @Transactional
+    public Optional<LogisticsEvent> ejecutarRecogida(PickupCompletedEvent recogida) {
+        String eventId = "pickup:" + recogida.pickupNumber();
+        if (logisticsEvents.existePorEventId(eventId)) {
+            return Optional.empty();
+        }
+        TrackedShipment envio = trackedShipments.porTrackingNumberParaActualizar(recogida.trackingNumber())
+                .orElseThrow(() -> new UnknownShipmentException(recogida.trackingNumber()));
+        // Una reentrega concurrente puede haber terminado mientras esperábamos el bloqueo.
+        if (logisticsEvents.existePorEventId(eventId)) {
+            return Optional.empty();
+        }
+        Instant now = clock.instant();
+        if (recogida.pickedUpAt() == null || recogida.pickedUpAt().isAfter(now)) {
+            throw new FechaDeMovimientoInvalidaException(recogida.pickedUpAt(), now);
+        }
+        EstadoDelEnvio estado = estadoDelEnvio.desdeHistorial(envio,
+                logisticsEvents.findHistorial(recogida.trackingNumber()));
+        Ciudad origen = validador.validarRecogida(estado, recogida.cityId(), recogida.pickedUpAt());
+        LogisticsEvent saved = logisticsEvents.save(LogisticsEvent.registrar(new LogisticsEvent.Reporte(
+                eventId, recogida.trackingNumber(), EventType.PICKED_UP,
+                new LogisticsEvent.Lugar("Recogida a domicilio", null, origen.id(), origen.etiqueta()),
+                null, null, recogida.pickedUpAt()), now));
+        publicar(saved, estado.ultimoTipo(), now);
+        return Optional.of(saved);
+    }
+
+    private void publicar(LogisticsEvent saved, EventType anterior, Instant now) {
         events.publish(new EventoLogisticoRegistradoEvent(
                 saved.getId(),
                 saved.getTrackingNumber(),
                 saved.getType().name(),
-                FlujoLogistico.estadoResultante(saved.getType(), estado.ultimoTipo()),
+                FlujoLogistico.estadoResultante(saved.getType(), anterior),
                 saved.getPoint(),
                 saved.getCenterId(),
                 saved.getCityId(),
@@ -101,8 +141,6 @@ public class RegistrarEventoLogistico {
                 saved.getNextStopCityId(),
                 saved.getNextStopCity(),
                 saved.getPlannedLegHours()));
-
-        return Optional.of(saved);
     }
 
     /** Duración del tramo directo entre dos ciudades según la red, o null si no existe. */

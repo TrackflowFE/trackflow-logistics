@@ -106,7 +106,8 @@ class ConsultarEstadoDelEnvioTest {
         assertThat(estado.ciudadActual()).isEqualTo(MEDELLIN);
         assertThat(estado.rutaPlaneada()).containsExactly(MEDELLIN, MANIZALES, BOGOTA);
         assertThat(estado.siguienteParada()).isEqualTo(MANIZALES);
-        assertThat(estado.siguientesPermitidos()).containsExactly(EventType.RECEIVED_AT_CENTER);
+        assertThat(estado.siguientesPermitidos())
+                .containsExactlyInAnyOrder(EventType.RECEIVED_AT_CENTER, EventType.PICKED_UP);
     }
 
     @Test
@@ -124,6 +125,22 @@ class ConsultarEstadoDelEnvioTest {
         assertThat(estado.centroActualNombre()).isEqualTo("CD Medellín");
         assertThat(estado.siguienteParada()).isEqualTo(MANIZALES);
         assertThat(estado.siguientesPermitidos()).containsExactly(EventType.RECEIVED_AT_CENTER);
+    }
+
+    @Test
+    void recogidaSinCentroYRecepcionPosteriorSeReconstruyenEnOrigen() {
+        LogisticsEvent recogida = LogisticsEvent.registrar(new LogisticsEvent.Reporte("pickup:1", TN,
+                EventType.PICKED_UP, new LogisticsEvent.Lugar("Recogida a domicilio", null, MEDELLIN.id(),
+                        MEDELLIN.etiqueta()), null, null, T1), T1);
+        EstadoDelEnvio enCustodia = consulta.desdeHistorial(envio(MEDELLIN, BOGOTA), List.of(recogida));
+        assertThat(enCustodia.centroActualId()).isNull();
+        assertThat(enCustodia.ciudadActual()).isEqualTo(MEDELLIN);
+        assertThat(enCustodia.estado()).isEqualTo("IN_CUSTODY");
+        LogisticsEvent recibido = evento(2L, TN, EventType.RECEIVED_AT_CENTER, cdMedellin, MEDELLIN,
+                T1.plusSeconds(1));
+        EstadoDelEnvio enCentro = consulta.desdeHistorial(envio(MEDELLIN, BOGOTA), List.of(recogida, recibido));
+        assertThat(enCentro.estado()).isEqualTo("AT_DISTRIBUTION_CENTER");
+        assertThat(enCentro.ciudadActual()).isEqualTo(MEDELLIN);
     }
 
     @Test

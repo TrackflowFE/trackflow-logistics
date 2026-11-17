@@ -28,6 +28,7 @@ import com.trackflow.modules.logistics.domain.UnknownShipmentException;
 import com.trackflow.shared.events.DomainEvent;
 import com.trackflow.shared.events.EventPublisher;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
+import com.trackflow.shared.events.PickupCompletedEvent;
 import com.trackflow.shared.geografia.Ciudad;
 import java.time.Clock;
 import java.time.Instant;
@@ -198,5 +199,68 @@ class RegistrarEventoLogisticoTest {
                 .isInstanceOf(MovimientoFueraDeOrdenException.class);
         verify(logisticsEvents, never()).save(any());
         verifyNoInteractions(events);
+    }
+
+    private PickupCompletedEvent recogida(Instant fecha) {
+        return new PickupCompletedEvent("RC123456789012", TN, MEDELLIN.id(), fecha, AHORA);
+    }
+
+    @Test
+    void registraYPublicaRecogidaSinCentroNiParada() {
+        when(trackedShipments.porTrackingNumberParaActualizar(TN)).thenReturn(Optional.of(envio));
+        when(logisticsEvents.findHistorial(TN)).thenReturn(List.of());
+        EstadoDelEnvio estado = recibidoEnMedellin();
+        when(estadoDelEnvio.desdeHistorial(envio, List.of())).thenReturn(estado);
+        when(validador.validarRecogida(estado, MEDELLIN.id(), OCURRIDO)).thenReturn(MEDELLIN);
+        when(logisticsEvents.save(any())).thenAnswer(inv -> {
+            LogisticsEvent evento = inv.getArgument(0);
+            ReflectionTestUtils.setField(evento, "id", 55L);
+            return evento;
+        });
+        LogisticsEvent guardado = registrar.ejecutarRecogida(recogida(OCURRIDO)).orElseThrow();
+        assertThat(guardado.getEventId()).isEqualTo("pickup:RC123456789012");
+        assertThat(guardado.getPoint()).isEqualTo("Recogida a domicilio");
+        assertThat(guardado.getCenterId()).isNull();
+        assertThat(guardado.getCityId()).isEqualTo(MEDELLIN.id());
+        assertThat(guardado.getNextStopCityId()).isNull();
+        ArgumentCaptor<DomainEvent> captor = ArgumentCaptor.forClass(DomainEvent.class);
+        verify(events).publish(captor.capture());
+        EventoLogisticoRegistradoEvent publicado = (EventoLogisticoRegistradoEvent) captor.getValue();
+        assertThat(publicado.eventType()).isEqualTo("PICKED_UP");
+        assertThat(publicado.resultingStatus()).isEqualTo("IN_CUSTODY");
+        assertThat(publicado.centerId()).isNull();
+        verifyNoInteractions(red);
+    }
+
+    @Test
+    void duplicadoDeRecogidaNoSePublicaDeNuevo() {
+        when(logisticsEvents.existePorEventId("pickup:RC123456789012")).thenReturn(true);
+        assertThat(registrar.ejecutarRecogida(recogida(OCURRIDO))).isEmpty();
+        verifyNoInteractions(trackedShipments, events);
+    }
+
+    @Test
+    void reentregaConcurrenteSeDetectaDespuesDelBloqueo() {
+        when(logisticsEvents.existePorEventId("pickup:RC123456789012")).thenReturn(false, true);
+        when(trackedShipments.porTrackingNumberParaActualizar(TN)).thenReturn(Optional.of(envio));
+        assertThat(registrar.ejecutarRecogida(recogida(OCURRIDO))).isEmpty();
+        verify(logisticsEvents, never()).save(any());
+        verifyNoInteractions(events);
+    }
+
+    @Test
+    void recogidaAnteriorAlEnvioSeguibleSePropagaParaReintento() {
+        when(trackedShipments.porTrackingNumberParaActualizar(TN)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> registrar.ejecutarRecogida(recogida(OCURRIDO)))
+                .isInstanceOf(UnknownShipmentException.class);
+        verifyNoInteractions(events);
+    }
+
+    @Test
+    void recogidaConFechaFuturaSeRechaza() {
+        when(trackedShipments.porTrackingNumberParaActualizar(TN)).thenReturn(Optional.of(envio));
+        assertThatThrownBy(() -> registrar.ejecutarRecogida(recogida(AHORA.plusSeconds(1))))
+                .isInstanceOf(FechaDeMovimientoInvalidaException.class);
+        verify(logisticsEvents, never()).save(any());
     }
 }

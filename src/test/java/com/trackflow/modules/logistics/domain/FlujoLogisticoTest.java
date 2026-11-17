@@ -12,7 +12,8 @@ class FlujoLogisticoTest {
 
     @Test
     void unEnvioRecienRegistradoSoloPuedeRecibirseEnCentro() {
-        assertThat(FlujoLogistico.siguientesPermitidos(null)).containsExactly(EventType.RECEIVED_AT_CENTER);
+        assertThat(FlujoLogistico.siguientesPermitidos(null))
+                .containsExactlyInAnyOrder(EventType.RECEIVED_AT_CENTER, EventType.PICKED_UP);
     }
 
     @Test
@@ -75,7 +76,7 @@ class FlujoLogisticoTest {
         assertThat(FlujoLogistico.siguientesPermitidos(EventType.RECEIVED_AT_CENTER, true))
                 .containsExactly(EventType.DISPATCHED);
         assertThat(FlujoLogistico.siguientesPermitidos(null, false))
-                .containsExactly(EventType.RECEIVED_AT_CENTER);
+                .containsExactlyInAnyOrder(EventType.RECEIVED_AT_CENTER, EventType.PICKED_UP);
     }
 
     @Test
@@ -93,6 +94,18 @@ class FlujoLogisticoTest {
     void unIngresoAHubDejaElEnvioEnTransito() {
         assertThat(FlujoLogistico.estadoResultante(EventType.RECEIVED_AT_CENTER, EventType.DISPATCHED))
                 .isEqualTo("IN_TRANSIT");
+    }
+
+    @Test
+    void recogidaYRecepcionEnOrigenNoSonTransito() {
+        assertThat(FlujoLogistico.permite(null, EventType.PICKED_UP)).isTrue();
+        assertThat(FlujoLogistico.siguientesPermitidos(EventType.PICKED_UP))
+                .containsExactly(EventType.RECEIVED_AT_CENTER);
+        assertThat(FlujoLogistico.estadoResultante(EventType.PICKED_UP, null)).isEqualTo("IN_CUSTODY");
+        assertThat(FlujoLogistico.estadoResultante(EventType.RECEIVED_AT_CENTER, EventType.PICKED_UP))
+                .isEqualTo("AT_DISTRIBUTION_CENTER");
+        assertThat(FlujoLogistico.ciudadEsperada(EventType.RECEIVED_AT_CENTER, EventType.PICKED_UP))
+                .isEqualTo(CiudadEsperada.ORIGEN);
     }
 
     @Test

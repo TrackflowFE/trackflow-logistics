@@ -13,6 +13,7 @@ class EventosDeIntegracionRabbitMQConfigTest {
 
     private final Declarables declarables = new EventosDeIntegracionRabbitMQConfig().eventosDeIntegracion(
             "trackflow.events", "shipment.created", "trackflow.logistics.shipment-created",
+            "pickup.completed", "trackflow.logistics.pickup-completed",
             "trackflow.logistics.events.dlx", "trackflow.logistics.events.dlq");
 
     @Test
@@ -43,7 +44,19 @@ class EventosDeIntegracionRabbitMQConfigTest {
                 .containsExactlyInAnyOrder(
                         org.assertj.core.groups.Tuple.tuple("trackflow.logistics.shipment-created",
                                 "trackflow.events", "shipment.created"),
+                        org.assertj.core.groups.Tuple.tuple("trackflow.logistics.pickup-completed",
+                                "trackflow.events", "pickup.completed"),
                         org.assertj.core.groups.Tuple.tuple("trackflow.logistics.events.dlq",
                                 "trackflow.logistics.events.dlx", "#"));
+    }
+
+    @Test
+    void laColaDeRecogidasTieneDlq() {
+        Queue cola = declarables.getDeclarablesByType(Queue.class).stream()
+                .filter(q -> q.getName().equals("trackflow.logistics.pickup-completed"))
+                .findFirst().orElseThrow();
+        assertThat(cola.isDurable()).isTrue();
+        assertThat(cola.getArguments()).containsEntry("x-dead-letter-exchange", "trackflow.logistics.events.dlx")
+                .containsEntry("x-dead-letter-routing-key", "pickup.completed");
     }
 }

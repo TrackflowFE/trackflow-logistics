@@ -41,4 +41,9 @@ public record RegistrarEventoRequest(
     public boolean isDelivererPresentWhenRequired() {
         return type != EventType.OUT_FOR_DELIVERY || StringUtils.hasText(delivererName);
     }
+
+    @AssertTrue(message = "el tipo de evento no puede reportarse por el operador")
+    public boolean isTypeReportableByOperator() {
+        return type == null || type.reportablePorOperador();
+    }
 }

@@ -87,6 +87,17 @@ class ConsultarAccionesDisponiblesTest {
     }
 
     @Test
+    void trasRecogidaOfreceRecepcionEnOrigen() {
+        when(estadoDelEnvio.ejecutar(TN)).thenReturn(estado(EventType.PICKED_UP, null, MEDELLIN,
+                List.of(MEDELLIN, MANIZALES, BOGOTA)));
+        when(centros.buscar(null, MEDELLIN.id(), 20)).thenReturn(List.of(cdMedellin));
+        assertThat(consulta.ejecutar(TN).acciones()).singleElement().satisfies(accion -> {
+            assertThat(accion.tipo()).isEqualTo(EventType.RECEIVED_AT_CENTER);
+            assertThat(accion.ciudadEsperada()).isEqualTo(CiudadEsperada.ORIGEN);
+        });
+    }
+
+    @Test
     void trasDespacharHaciaUnHubSoloOfreceLosCentrosDelHub() {
         when(estadoDelEnvio.ejecutar(TN)).thenReturn(estado(EventType.DISPATCHED, EventType.RECEIVED_AT_CENTER,
                 MEDELLIN, List.of(MEDELLIN, MANIZALES, BOGOTA)));

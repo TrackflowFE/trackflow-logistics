@@ -47,6 +47,7 @@ public class ConsultarAccionesDisponibles {
         EstadoDelEnvio estado = estadoDelEnvio.ejecutar(trackingNumber);
 
         List<Accion> acciones = estado.siguientesPermitidos().stream()
+                .filter(EventType::reportablePorOperador)
                 .map(tipo -> construir(tipo, estado))
                 .toList();
 
