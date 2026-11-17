@@ -17,7 +17,7 @@ Además lleva la red logística: centros, rutas entre ciudades, validación del 
 
 URL pública: pendiente de crear el servicio en Render. `render.yaml` define el servicio
 `trackflow-logistics`. La API de Envíos y acceso debe desplegarse primero, porque es la
-que crea el esquema de la base (Flyway V1 a V22).
+que crea el esquema de la base (Flyway V1 a V24).
 
 ## Endpoints
 
