@@ -88,7 +88,8 @@ public class RegistrarEventoLogistico {
                                 lugar.ciudad().id(), lugar.ciudad().etiqueta()),
                         entrante.observaciones(),
                         entrante.repartidorNombre(),
-                        entrante.ocurridoEn()),
+                        entrante.ocurridoEn(),
+                        entrante.motivoDeExcepcion()),
                 new LogisticsEvent.Parada(estado.siguienteParada().id(), estado.siguienteParada().etiqueta(),
                         horasDelTramo(estado.ciudadActual().id(), estado.siguienteParada().id())),
                 now));

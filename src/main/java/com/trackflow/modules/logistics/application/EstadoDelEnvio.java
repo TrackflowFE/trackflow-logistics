@@ -2,6 +2,7 @@ package com.trackflow.modules.logistics.application;
 
 import com.trackflow.modules.logistics.domain.CiudadEsperada;
 import com.trackflow.modules.logistics.domain.EventType;
+import com.trackflow.modules.logistics.domain.MotivoDeExcepcion;
 import com.trackflow.shared.geografia.Ciudad;
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +24,9 @@ import java.util.Set;
  * @param rutaPlaneada ciudades por las que debe pasar desde la actual hasta el destino,
  *        en orden; la primera es la actual y la última el destino
  * @param siguienteParada la ciudad a la que debe llegar tras el próximo despacho
+ * @param motivoDetenido por qué está detenido ahora mismo, o null si avanza con normalidad
+ * @param notaDetenido lo que anotó el operador al reportar esa excepción
+ * @param detenidoDesde cuándo ocurrió la excepción vigente
  */
 public record EstadoDelEnvio(
         String trackingNumber,
@@ -37,7 +41,25 @@ public record EstadoDelEnvio(
         Ciudad destino,
         List<Ciudad> rutaPlaneada,
         Ciudad siguienteParada,
-        Set<EventType> siguientesPermitidos) {
+        Set<EventType> siguientesPermitidos,
+        MotivoDeExcepcion motivoDetenido,
+        String notaDetenido,
+        Instant detenidoDesde) {
+
+    /** Un envío sin excepción vigente: avanza con normalidad. */
+    public EstadoDelEnvio(String trackingNumber, Instant registradoEn, EventType ultimoTipo, String estado,
+            Instant ultimoMovimientoEn, Long centroActualId, String centroActualNombre, Ciudad ciudadActual,
+            Ciudad origen, Ciudad destino, List<Ciudad> rutaPlaneada, Ciudad siguienteParada,
+            Set<EventType> siguientesPermitidos) {
+        this(trackingNumber, registradoEn, ultimoTipo, estado, ultimoMovimientoEn, centroActualId,
+                centroActualNombre, ciudadActual, origen, destino, rutaPlaneada, siguienteParada,
+                siguientesPermitidos, null, null, null);
+    }
+
+    /** Un envío está detenido mientras su último evento sea una excepción (HU-16). */
+    public boolean detenido() {
+        return motivoDetenido != null;
+    }
 
     /** Traduce la regla abstracta a la ciudad concreta que exige. */
     public Ciudad ciudadQueExige(CiudadEsperada esperada) {

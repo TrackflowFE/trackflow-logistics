@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.trackflow.modules.logistics.application.EventoLogisticoEntrante;
 import com.trackflow.modules.logistics.domain.EventType;
+import com.trackflow.modules.logistics.domain.MotivoDeExcepcion;
 import java.time.Instant;
 
 /**
@@ -26,7 +27,16 @@ public record EventoLogisticoMensaje(
         @JsonAlias("ciudadNombre") String cityName,
         @JsonAlias("observaciones") String notes,
         @JsonAlias("repartidorNombre") String delivererName,
-        @JsonAlias("ocurridoEn") Instant occurredAt) {
+        @JsonAlias("ocurridoEn") Instant occurredAt,
+        /** Por que se detuvo el envio; solo en los eventos de excepcion (HU-16). */
+        @JsonAlias("motivoDeExcepcion") String exceptionReason) {
+
+    /** Un movimiento normal del recorrido, sin motivo que explicar. */
+    public EventoLogisticoMensaje(String eventId, String trackingNumber, String type, Long centerId, Long cityId,
+            String point, String cityName, String notes, String delivererName, Instant occurredAt) {
+        this(eventId, trackingNumber, type, centerId, cityId, point, cityName, notes, delivererName, occurredAt,
+                null);
+    }
 
     /**
      * Versión del formato con que se produjo el mensaje. Viaja en cada mensaje para
@@ -50,7 +60,8 @@ public record EventoLogisticoMensaje(
                 evento.ciudadNombre(),
                 evento.observaciones(),
                 evento.repartidorNombre(),
-                evento.ocurridoEn());
+                evento.ocurridoEn(),
+                evento.motivoDeExcepcion() == null ? null : evento.motivoDeExcepcion().name());
     }
 
     public EventoLogisticoEntrante toEntrante() {
@@ -64,6 +75,7 @@ public record EventoLogisticoMensaje(
                 cityName,
                 notes,
                 delivererName,
-                occurredAt);
+                occurredAt,
+                exceptionReason == null ? null : MotivoDeExcepcion.valueOf(exceptionReason));
     }
 }

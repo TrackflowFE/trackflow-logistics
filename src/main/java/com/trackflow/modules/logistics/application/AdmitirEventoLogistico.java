@@ -4,6 +4,7 @@ import com.trackflow.modules.logistics.application.ValidadorDeRecorrido.LugarVal
 import com.trackflow.modules.logistics.domain.ClaveDeIdempotenciaEnUsoException;
 import com.trackflow.modules.logistics.domain.ClaveDeIdempotenciaInvalidaException;
 import com.trackflow.modules.logistics.domain.EventType;
+import com.trackflow.modules.logistics.domain.MotivoDeExcepcion;
 import com.trackflow.modules.logistics.domain.FechaDeMovimientoInvalidaException;
 import com.trackflow.modules.logistics.domain.LogisticsEvent;
 import com.trackflow.modules.logistics.domain.TrackedShipment;
@@ -38,7 +39,15 @@ public class AdmitirEventoLogistico {
      * registra el movimiento dos veces.
      */
     public record Command(String trackingNumber, EventType tipo, Long centroId, String observaciones,
-            String repartidorNombre, Instant ocurridoEn, String claveIdempotencia) {
+            String repartidorNombre, Instant ocurridoEn, String claveIdempotencia,
+            MotivoDeExcepcion motivoDeExcepcion) {
+
+        /** Un movimiento normal del recorrido, sin motivo que explicar. */
+        public Command(String trackingNumber, EventType tipo, Long centroId, String observaciones,
+                String repartidorNombre, Instant ocurridoEn, String claveIdempotencia) {
+            this(trackingNumber, tipo, centroId, observaciones, repartidorNombre, ocurridoEn, claveIdempotencia,
+                    null);
+        }
     }
 
     /** El eventId es una columna de texto; una clave más larga no tiene uso legítimo. */
@@ -91,7 +100,8 @@ public class AdmitirEventoLogistico {
                 lugar.ciudad().etiqueta(),
                 command.observaciones(),
                 command.repartidorNombre(),
-                ocurridoEn);
+                ocurridoEn,
+                command.motivoDeExcepcion());
 
         publisher.publicar(evento);
 

@@ -55,7 +55,23 @@ public final class FlujoLogistico {
      * está registrado y todavía no se ha movido.
      */
     public static Set<EventType> siguientesPermitidos(EventType ultimo) {
-        return Collections.unmodifiableSet(Optional.ofNullable(ultimo).map(SIGUIENTES::get).orElse(DESDE_REGISTRADO));
+        Set<EventType> delFlujo = Optional.ofNullable(ultimo).map(SIGUIENTES::get).orElse(DESDE_REGISTRADO);
+        if (!admiteExcepcion(ultimo)) {
+            return Collections.unmodifiableSet(delFlujo);
+        }
+        // La excepcion cabe junto a lo que toque: un envio puede quedarse detenido en
+        // cualquier punto del camino, no en uno concreto.
+        Set<EventType> conExcepcion = EnumSet.copyOf(delFlujo);
+        conExcepcion.add(EventType.EXCEPTION);
+        return Collections.unmodifiableSet(conExcepcion);
+    }
+
+    /**
+     * Un envio entregado ya no puede detenerse: su recorrido termino. Uno que aun no
+     * se ha movido tampoco, porque todavia no esta en manos de la operacion (HU-16).
+     */
+    public static boolean admiteExcepcion(EventType ultimo) {
+        return ultimo != null && ultimo != EventType.DELIVERED;
     }
 
     /**
@@ -73,7 +89,7 @@ public final class FlujoLogistico {
         EventType queToca = siguienteParadaEsDestino
                 ? EventType.ARRIVED_AT_DESTINATION_CENTER
                 : EventType.RECEIVED_AT_CENTER;
-        return Collections.unmodifiableSet(EnumSet.of(queToca));
+        return Collections.unmodifiableSet(EnumSet.of(queToca, EventType.EXCEPTION));
     }
 
     public static boolean permite(EventType ultimo, EventType siguiente) {
@@ -99,6 +115,12 @@ public final class FlujoLogistico {
      * retrocedería una etapa.
      */
     public static String estadoResultante(EventType tipo, EventType anterior) {
+        // Una excepción no mueve el paquete: el envío se queda donde lo dejó el último
+        // movimiento real. Sin esta salvedad el estado llegaría vacío y el cliente
+        // vería desaparecer el progreso de su envío justo cuando algo salió mal (HU-16).
+        if (tipo == EventType.EXCEPTION) {
+            return estadoTras(anterior, null);
+        }
         if (tipo == EventType.RECEIVED_AT_CENTER && anterior == EventType.DISPATCHED) {
             return EventType.DISPATCHED.resultingStatus();
         }
@@ -117,6 +139,8 @@ public final class FlujoLogistico {
             case PICKED_UP -> CiudadEsperada.ORIGEN;
             case DISPATCHED -> CiudadEsperada.ACTUAL;
             case ARRIVED_AT_DESTINATION_CENTER, OUT_FOR_DELIVERY, DELIVERED -> CiudadEsperada.DESTINO;
+            // La excepcion se reporta donde esta el paquete, sea cual sea ese lugar.
+            case EXCEPTION -> CiudadEsperada.ACTUAL;
         };
     }
 }

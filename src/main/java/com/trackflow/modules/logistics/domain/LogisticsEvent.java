@@ -41,6 +41,14 @@ public class LogisticsEvent {
     private String notes;
 
     /**
+     * Por qué se detuvo el envío, en los eventos de excepción (HU-16). Null en los
+     * movimientos normales, que no necesitan explicación: avanzar es lo esperado.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "exception_reason", updatable = false)
+    private MotivoDeExcepcion exceptionReason;
+
+    /**
      * Id del centro del catálogo, si el evento se reportó con uno. Nullable a
      * propósito: eventos históricos y los que usan el respaldo de texto libre no
      * tienen centro asociado. No se resuelve como referencia viva — si el centro se
@@ -115,7 +123,13 @@ public class LogisticsEvent {
 
     /** Lo que reporta el operador, antes de que el sistema le ponga fecha de registro. */
     public record Reporte(String eventId, String trackingNumber, EventType type, Lugar lugar, String notes,
-            String delivererName, Instant occurredAt) {
+            String delivererName, Instant occurredAt, MotivoDeExcepcion exceptionReason) {
+
+        /** Un movimiento normal del recorrido, sin motivo que explicar. */
+        public Reporte(String eventId, String trackingNumber, EventType type, Lugar lugar, String notes,
+                String delivererName, Instant occurredAt) {
+            this(eventId, trackingNumber, type, lugar, notes, delivererName, occurredAt, null);
+        }
     }
 
     private LogisticsEvent(Reporte reporte, Parada siguienteParada, Instant registeredAt) {
@@ -130,6 +144,9 @@ public class LogisticsEvent {
         this.delivererName = reporte.delivererName();
         this.occurredAt = reporte.occurredAt();
         this.registeredAt = registeredAt;
+        // Solo una excepción lleva motivo: en los demás tipos se descarta, para que un
+        // mensaje mal armado no deje un historial que se contradice a sí mismo.
+        this.exceptionReason = reporte.type() == EventType.EXCEPTION ? reporte.exceptionReason() : null;
         this.nextStopCityId = siguienteParada.cityId();
         this.nextStopCity = siguienteParada.cityName();
         this.plannedLegHours = siguienteParada.horasDelTramo();
@@ -150,6 +167,10 @@ public class LogisticsEvent {
         Instant occurredAt = reporte.occurredAt();
         if (occurredAt == null || occurredAt.isAfter(registeredAt)) {
             throw new FechaDeMovimientoInvalidaException(occurredAt, registeredAt);
+        }
+
+        if (reporte.type() == EventType.EXCEPTION && reporte.exceptionReason() == null) {
+            throw new MotivoDeExcepcionRequeridoException(reporte.trackingNumber());
         }
 
         Parada parada = reporte.type() == EventType.DISPATCHED

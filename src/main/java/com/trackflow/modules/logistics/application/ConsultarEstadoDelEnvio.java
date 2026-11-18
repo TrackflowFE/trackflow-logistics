@@ -2,6 +2,7 @@ package com.trackflow.modules.logistics.application;
 
 import com.trackflow.modules.logistics.domain.Centro;
 import com.trackflow.modules.logistics.domain.EventType;
+import com.trackflow.modules.logistics.domain.MotivoDeExcepcion;
 import com.trackflow.modules.logistics.domain.FlujoLogistico;
 import com.trackflow.modules.logistics.domain.LogisticsEvent;
 import com.trackflow.modules.logistics.domain.TrackedShipment;
@@ -45,9 +46,19 @@ public class ConsultarEstadoDelEnvio {
         Ciudad origen = ciudades.exigir(envio.getOriginCityId());
         Ciudad destino = ciudades.exigir(envio.getDestinationCityId());
 
-        Optional<LogisticsEvent> ultimo = contandoDesdeElFinal(historial, 0);
+        // Las excepciones no cuentan como movimiento: explican por que el envio se
+        // detuvo, pero no lo mueven ni cambian lo que puede pasar despues (HU-16). El
+        // estado y las reglas se derivan del recorrido real; la excepcion se lleva
+        // aparte y deja de estar vigente en cuanto el envio vuelve a moverse.
+        List<LogisticsEvent> movimientos = historial.stream()
+                .filter(evento -> evento.getType() != EventType.EXCEPTION)
+                .toList();
+        Optional<LogisticsEvent> excepcionVigente = contandoDesdeElFinal(historial, 0)
+                .filter(evento -> evento.getType() == EventType.EXCEPTION);
+
+        Optional<LogisticsEvent> ultimo = contandoDesdeElFinal(movimientos, 0);
         EventType ultimoTipo = ultimo.map(LogisticsEvent::getType).orElse(null);
-        EventType penultimoTipo = contandoDesdeElFinal(historial, 1).map(LogisticsEvent::getType).orElse(null);
+        EventType penultimoTipo = contandoDesdeElFinal(movimientos, 1).map(LogisticsEvent::getType).orElse(null);
 
         // El centro del último movimiento dice dónde está el paquete. Los eventos
         // viejos, registrados cuando el punto era texto libre, no tienen centro: de
@@ -75,7 +86,10 @@ public class ConsultarEstadoDelEnvio {
                 destino,
                 ruta,
                 siguienteParada,
-                FlujoLogistico.siguientesPermitidos(ultimoTipo, siguienteParada.id().equals(destino.id())));
+                FlujoLogistico.siguientesPermitidos(ultimoTipo, siguienteParada.id().equals(destino.id())),
+                excepcionVigente.map(LogisticsEvent::getExceptionReason).orElse(null),
+                excepcionVigente.map(LogisticsEvent::getNotes).orElse(null),
+                excepcionVigente.map(LogisticsEvent::getOccurredAt).orElse(null));
     }
 
     /** El movimiento {@code posicion} lugares antes del último (0 es el último), si existe. */

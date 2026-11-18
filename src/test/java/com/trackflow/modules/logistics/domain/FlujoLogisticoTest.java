@@ -19,7 +19,8 @@ class FlujoLogisticoTest {
     @Test
     void trasUnDespachoCabenLlegadaODestinoOIngresoAHub() {
         assertThat(FlujoLogistico.siguientesPermitidos(EventType.DISPATCHED))
-                .containsExactlyInAnyOrder(EventType.ARRIVED_AT_DESTINATION_CENTER, EventType.RECEIVED_AT_CENTER);
+                .containsExactlyInAnyOrder(EventType.ARRIVED_AT_DESTINATION_CENTER, EventType.RECEIVED_AT_CENTER,
+                        EventType.EXCEPTION);
     }
 
     @Test
@@ -47,7 +48,12 @@ class FlujoLogisticoTest {
             "ARRIVED_AT_DESTINATION_CENTER, DISPATCHED, false",
             "OUT_FOR_DELIVERY, RECEIVED_AT_CENTER, false",
             "DELIVERED, RECEIVED_AT_CENTER, false",
-            "DELIVERED, DISPATCHED, false"
+            "DELIVERED, DISPATCHED, false",
+            // HU-16: detenerse cabe en cualquier punto del camino, pero no despues de entregar.
+            "RECEIVED_AT_CENTER, EXCEPTION, true",
+            "DISPATCHED, EXCEPTION, true",
+            "OUT_FOR_DELIVERY, EXCEPTION, true",
+            "DELIVERED, EXCEPTION, false"
     })
     void permiteSoloLasTransicionesDelRecorrido(EventType ultimo, EventType siguiente, boolean esperado) {
         assertThat(FlujoLogistico.permite(ultimo, siguiente)).isEqualTo(esperado);
@@ -57,24 +63,26 @@ class FlujoLogisticoTest {
     void sinMovimientosNoSePuedeDespacharNiEntregar() {
         assertThat(FlujoLogistico.permite(null, EventType.DISPATCHED)).isFalse();
         assertThat(FlujoLogistico.permite(null, EventType.DELIVERED)).isFalse();
+        // Un envio que todavia no se ha movido no esta en manos de la operacion (HU-16).
+        assertThat(FlujoLogistico.permite(null, EventType.EXCEPTION)).isFalse();
     }
 
     @Test
     void trasDespachoHaciaElDestinoSoloCabeLaLlegada() {
         assertThat(FlujoLogistico.siguientesPermitidos(EventType.DISPATCHED, true))
-                .containsExactly(EventType.ARRIVED_AT_DESTINATION_CENTER);
+                .containsExactlyInAnyOrder(EventType.ARRIVED_AT_DESTINATION_CENTER, EventType.EXCEPTION);
     }
 
     @Test
     void trasDespachoHaciaUnHubSoloCabeElIngresoAlHub() {
         assertThat(FlujoLogistico.siguientesPermitidos(EventType.DISPATCHED, false))
-                .containsExactly(EventType.RECEIVED_AT_CENTER);
+                .containsExactlyInAnyOrder(EventType.RECEIVED_AT_CENTER, EventType.EXCEPTION);
     }
 
     @Test
     void laRutaNoCambiaLasTransicionesQueNoSonDespacho() {
         assertThat(FlujoLogistico.siguientesPermitidos(EventType.RECEIVED_AT_CENTER, true))
-                .containsExactly(EventType.DISPATCHED);
+                .containsExactlyInAnyOrder(EventType.DISPATCHED, EventType.EXCEPTION);
         assertThat(FlujoLogistico.siguientesPermitidos(null, false))
                 .containsExactlyInAnyOrder(EventType.RECEIVED_AT_CENTER, EventType.PICKED_UP);
     }
@@ -100,7 +108,7 @@ class FlujoLogisticoTest {
     void recogidaYRecepcionEnOrigenNoSonTransito() {
         assertThat(FlujoLogistico.permite(null, EventType.PICKED_UP)).isTrue();
         assertThat(FlujoLogistico.siguientesPermitidos(EventType.PICKED_UP))
-                .containsExactly(EventType.RECEIVED_AT_CENTER);
+                .containsExactlyInAnyOrder(EventType.RECEIVED_AT_CENTER, EventType.EXCEPTION);
         assertThat(FlujoLogistico.estadoResultante(EventType.PICKED_UP, null)).isEqualTo("IN_CUSTODY");
         assertThat(FlujoLogistico.estadoResultante(EventType.RECEIVED_AT_CENTER, EventType.PICKED_UP))
                 .isEqualTo("AT_DISTRIBUTION_CENTER");
