@@ -91,7 +91,8 @@ class ConsultarAccionesDisponiblesTest {
         when(estadoDelEnvio.ejecutar(TN)).thenReturn(estado(EventType.PICKED_UP, null, MEDELLIN,
                 List.of(MEDELLIN, MANIZALES, BOGOTA)));
         when(centros.buscar(null, MEDELLIN.id(), 20)).thenReturn(List.of(cdMedellin));
-        assertThat(consulta.ejecutar(TN).acciones()).singleElement().satisfies(accion -> {
+        assertThat(consulta.ejecutar(TN).acciones()).filteredOn(a -> a.tipo() != EventType.EXCEPTION)
+                .singleElement().satisfies(accion -> {
             assertThat(accion.tipo()).isEqualTo(EventType.RECEIVED_AT_CENTER);
             assertThat(accion.ciudadEsperada()).isEqualTo(CiudadEsperada.ORIGEN);
         });
@@ -105,7 +106,8 @@ class ConsultarAccionesDisponiblesTest {
 
         Acciones acciones = consulta.ejecutar(TN);
 
-        assertThat(acciones.acciones()).singleElement().satisfies(accion -> {
+        assertThat(acciones.acciones()).filteredOn(a -> a.tipo() != EventType.EXCEPTION)
+                .singleElement().satisfies(accion -> {
             assertThat(accion.tipo()).isEqualTo(EventType.RECEIVED_AT_CENTER);
             assertThat(accion.ciudadEsperada()).isEqualTo(CiudadEsperada.SIGUIENTE_PARADA);
             assertThat(accion.ciudadDeLosCentros()).isEqualTo(MANIZALES);

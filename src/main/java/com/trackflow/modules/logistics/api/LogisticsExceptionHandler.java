@@ -2,6 +2,7 @@ package com.trackflow.modules.logistics.api;
 
 import com.trackflow.modules.logistics.domain.CentroFueraDeCiudadException;
 import com.trackflow.modules.logistics.domain.CentroInvalidoException;
+import com.trackflow.modules.logistics.domain.MotivoDeExcepcionRequeridoException;
 import com.trackflow.modules.logistics.domain.CentroNoEncontradoException;
 import com.trackflow.modules.logistics.domain.ClaveDeIdempotenciaEnUsoException;
 import com.trackflow.modules.logistics.domain.ClaveDeIdempotenciaInvalidaException;
@@ -36,6 +37,13 @@ public class LogisticsExceptionHandler {
     ProblemDetail fechaInvalida(FechaDeMovimientoInvalidaException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
         problema.setTitle("Fecha del movimiento inválida");
+        return problema;
+    }
+
+    @ExceptionHandler(MotivoDeExcepcionRequeridoException.class)
+    ProblemDetail motivoRequerido(MotivoDeExcepcionRequeridoException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Falta el motivo de la excepción");
         return problema;
     }
 

@@ -1,6 +1,7 @@
 package com.trackflow.modules.logistics.application;
 
 import com.trackflow.modules.logistics.domain.EventType;
+import com.trackflow.modules.logistics.domain.MotivoDeExcepcion;
 import java.time.Instant;
 
 /**
@@ -22,5 +23,15 @@ public record EventoLogisticoEntrante(
         String ciudadNombre,
         String observaciones,
         String repartidorNombre,
-        Instant ocurridoEn) {
+        Instant ocurridoEn,
+        /** Por qué se detuvo el envío; solo en los eventos de excepción (HU-16). */
+        MotivoDeExcepcion motivoDeExcepcion) {
+
+    /** Un movimiento normal del recorrido, sin motivo que explicar. */
+    public EventoLogisticoEntrante(String eventId, String trackingNumber, EventType tipo, Long centroId,
+            Long ciudadId, String punto, String ciudadNombre, String observaciones, String repartidorNombre,
+            Instant ocurridoEn) {
+        this(eventId, trackingNumber, tipo, centroId, ciudadId, punto, ciudadNombre, observaciones,
+                repartidorNombre, ocurridoEn, null);
+    }
 }

@@ -52,7 +52,8 @@ public class LogisticsEventController {
                 request.notes(),
                 request.delivererName(),
                 request.occurredAt(),
-                claveIdempotencia));
+                claveIdempotencia,
+                request.exceptionReason()));
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(EventoAdmitidoResponse.from(evento));
     }

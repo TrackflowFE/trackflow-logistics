@@ -11,7 +11,13 @@ public enum EventType {
     ARRIVED_AT_DESTINATION_CENTER("AT_DESTINATION_CENTER", "Llegada al centro destino"),
     OUT_FOR_DELIVERY("OUT_FOR_DELIVERY", "Salida a reparto"),
     DELIVERED("DELIVERED", "Entregado"),
-    PICKED_UP("IN_CUSTODY", "Recogido a domicilio", false);
+    PICKED_UP("IN_CUSTODY", "Recogido a domicilio", false),
+    /**
+     * El envío no pudo seguir su curso (HU-16). No deja estado propio: conserva el del
+     * último movimiento real, porque el paquete sigue donde estaba. Por eso su estado
+     * es null y {@link FlujoLogistico} lo resuelve mirando hacia atrás.
+     */
+    EXCEPTION(null, "Excepción");
 
     private final String resultingStatus;
     /** Cómo se le nombra el movimiento al operador. */

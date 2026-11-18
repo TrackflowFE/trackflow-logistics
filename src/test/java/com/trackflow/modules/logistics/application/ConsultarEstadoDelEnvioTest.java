@@ -124,7 +124,7 @@ class ConsultarEstadoDelEnvioTest {
         assertThat(estado.centroActualId()).isEqualTo(10L);
         assertThat(estado.centroActualNombre()).isEqualTo("CD Medellín");
         assertThat(estado.siguienteParada()).isEqualTo(MANIZALES);
-        assertThat(estado.siguientesPermitidos()).containsExactly(EventType.RECEIVED_AT_CENTER);
+        assertThat(estado.siguientesPermitidos()).containsExactlyInAnyOrder(EventType.RECEIVED_AT_CENTER, EventType.EXCEPTION);
     }
 
     @Test
@@ -156,7 +156,7 @@ class ConsultarEstadoDelEnvioTest {
         assertThat(estado.ciudadActual()).isEqualTo(MANIZALES);
         assertThat(estado.rutaPlaneada()).containsExactly(MANIZALES, BOGOTA);
         assertThat(estado.siguienteParada()).isEqualTo(BOGOTA);
-        assertThat(estado.siguientesPermitidos()).containsExactly(EventType.ARRIVED_AT_DESTINATION_CENTER);
+        assertThat(estado.siguientesPermitidos()).containsExactlyInAnyOrder(EventType.ARRIVED_AT_DESTINATION_CENTER, EventType.EXCEPTION);
         assertThat(estado.ciudadQueExige(CiudadEsperada.ORIGEN)).isEqualTo(MEDELLIN);
         assertThat(estado.ciudadQueExige(CiudadEsperada.DESTINO)).isEqualTo(BOGOTA);
         assertThat(estado.ciudadQueExige(CiudadEsperada.ACTUAL)).isEqualTo(MANIZALES);
@@ -172,7 +172,7 @@ class ConsultarEstadoDelEnvioTest {
 
         assertThat(estado.rutaPlaneada()).containsExactly(BOGOTA);
         assertThat(estado.siguienteParada()).isEqualTo(BOGOTA);
-        assertThat(estado.siguientesPermitidos()).containsExactly(EventType.OUT_FOR_DELIVERY);
+        assertThat(estado.siguientesPermitidos()).containsExactlyInAnyOrder(EventType.OUT_FOR_DELIVERY, EventType.EXCEPTION);
     }
 
     @Test

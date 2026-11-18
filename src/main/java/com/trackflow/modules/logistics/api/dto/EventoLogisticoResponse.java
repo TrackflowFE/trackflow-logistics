@@ -17,6 +17,9 @@ public record EventoLogisticoResponse(
         String cityName,
         String notes,
         String delivererName,
+        /** Solo en EXCEPTION: por qué se detuvo el envío y cómo se le nombra (HU-16). */
+        String exceptionReason,
+        String exceptionLabel,
         /** Solo en DISPATCHED: la ciudad hacia la que salió el camión (un hub o el destino). */
         Long nextStopCityId,
         String nextStopCity,
@@ -36,6 +39,8 @@ public record EventoLogisticoResponse(
                 event.getCityName(),
                 event.getNotes(),
                 event.getDelivererName(),
+                event.getExceptionReason() == null ? null : event.getExceptionReason().name(),
+                event.getExceptionReason() == null ? null : event.getExceptionReason().etiqueta(),
                 event.getNextStopCityId(),
                 event.getNextStopCity(),
                 event.getOccurredAt(),

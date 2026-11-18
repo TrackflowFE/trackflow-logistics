@@ -1,6 +1,7 @@
 package com.trackflow.modules.logistics.api.dto;
 
 import com.trackflow.modules.logistics.domain.EventType;
+import com.trackflow.modules.logistics.domain.MotivoDeExcepcion;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -35,11 +36,22 @@ public record RegistrarEventoRequest(
          * si el lector de la bodega estuvo sin señal.
          */
         @PastOrPresent(message = "el movimiento no puede haber ocurrido en el futuro")
-        Instant occurredAt) {
+        Instant occurredAt,
+
+        /**
+         * Por qué el envío no pudo seguir. Obligatorio cuando {@code type} es
+         * EXCEPTION, y se ignora en los demás tipos (HU-16).
+         */
+        MotivoDeExcepcion exceptionReason) {
 
     @AssertTrue(message = "el repartidor es obligatorio para un evento OUT_FOR_DELIVERY")
     public boolean isDelivererPresentWhenRequired() {
         return type != EventType.OUT_FOR_DELIVERY || StringUtils.hasText(delivererName);
+    }
+
+    @AssertTrue(message = "indique el motivo: RECIPIENT_ABSENT, WRONG_ADDRESS, DAMAGED, REFUSED o HELD")
+    public boolean isReasonPresentWhenRequired() {
+        return type != EventType.EXCEPTION || exceptionReason != null;
     }
 
     @AssertTrue(message = "el tipo de evento no puede reportarse por el operador")
