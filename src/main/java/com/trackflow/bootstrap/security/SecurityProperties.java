@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
 public class SecurityProperties {
 
     public static final String ROL_OPERADOR = "OPERADOR";
+    /** Supervisa la operacion: consulta, no registra (HU-11). Aqui solo se nombra para
+     * declarar la jerarquia; esta API no tiene rutas reservadas a el. */
+    public static final String ROL_SUPERVISOR = "SUPERVISOR";
     public static final String ROL_ADMIN = "ADMIN";
 
     private final boolean activa;

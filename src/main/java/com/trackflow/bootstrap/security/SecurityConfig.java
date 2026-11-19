@@ -9,6 +9,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
@@ -26,6 +28,20 @@ public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final SecurityProperties propiedades;
+
+    /**
+     * El administrador contiene a los otros dos roles, igual que en la API de envios,
+     * que es quien emite los tokens. Sin esta jerarquia aqui, un administrador que
+     * llegara con su unico rol no podria registrar un evento, porque esas rutas piden
+     * OPERADOR de forma literal.
+     */
+    @Bean
+    static RoleHierarchy jerarquiaDeRoles() {
+        return RoleHierarchyImpl.withDefaultRolePrefix()
+                .role(SecurityProperties.ROL_ADMIN)
+                .implies(SecurityProperties.ROL_SUPERVISOR, SecurityProperties.ROL_OPERADOR)
+                .build();
+    }
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) {
