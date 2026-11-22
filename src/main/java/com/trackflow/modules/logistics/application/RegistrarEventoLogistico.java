@@ -12,6 +12,7 @@ import com.trackflow.shared.events.EventPublisher;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
 import com.trackflow.shared.events.PickupCompletedEvent;
 import com.trackflow.shared.geografia.Ciudad;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -40,6 +41,7 @@ public class RegistrarEventoLogistico {
     private final RedDeRutas red;
     private final EventPublisher events;
     private final Clock clock;
+    private final MeterRegistry metricas;
 
     /**
      * El broker entrega at-least-once, así que un mismo eventId puede llegar más de una vez;
@@ -126,7 +128,13 @@ public class RegistrarEventoLogistico {
         return Optional.of(saved);
     }
 
+    /**
+     * Se llama una sola vez por movimiento efectivamente guardado, nunca en una reentrega
+     * descartada: el contador cuenta hechos del negocio, no mensajes recibidos.
+     */
     private void publicar(LogisticsEvent saved, EventType anterior, Instant now) {
+        metricas.counter("trackflow_eventos_logisticos_registrados_total",
+                "tipo", saved.getType().name()).increment();
         events.publish(new EventoLogisticoRegistradoEvent(
                 saved.getId(),
                 saved.getTrackingNumber(),
