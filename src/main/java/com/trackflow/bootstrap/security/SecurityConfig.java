@@ -1,6 +1,7 @@
 package com.trackflow.bootstrap.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -44,7 +45,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) {
+    SecurityFilterChain filterChain(HttpSecurity http,
+            @Value("${management.server.port:-1}") int puertoDeGestion) {
         boolean protegido = propiedades.proteccionActiva();
 
         http
@@ -66,6 +68,14 @@ public class SecurityConfig {
                     // Lo que ve el cliente final: el número de seguimiento es su credencial.
                     auth.requestMatchers(HttpMethod.GET, "/api/shipments/*/events", "/api/shipments/*/route")
                             .permitAll();
+                    // Las métricas de Prometheus solo salen por el puerto de gestión, que
+                    // el clúster no publica hacia afuera. Si MANAGEMENT_SERVER_PORT no está
+                    // definida (Render), esta regla no se añade y /actuator/prometheus
+                    // sigue cayendo en el denyAll de abajo.
+                    if (puertoDeGestion > 0) {
+                        auth.requestMatchers(peticion -> peticion.getLocalPort() == puertoDeGestion
+                                && peticion.getRequestURI().startsWith("/actuator/")).permitAll();
+                    }
                     // /error es a donde Spring reenvía las respuestas de error: si se
                     // cerrara, un 404 llegaría al cliente como 401.
                     auth.requestMatchers("/", "/error", "/actuator/health/**", "/swagger-ui.html",

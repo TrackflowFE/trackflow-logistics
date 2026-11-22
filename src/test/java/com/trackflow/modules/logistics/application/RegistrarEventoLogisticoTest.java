@@ -30,6 +30,7 @@ import com.trackflow.shared.events.EventPublisher;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
 import com.trackflow.shared.events.PickupCompletedEvent;
 import com.trackflow.shared.geografia.Ciudad;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -75,7 +76,7 @@ class RegistrarEventoLogisticoTest {
     @BeforeEach
     void setUp() {
         registrar = new RegistrarEventoLogistico(logisticsEvents, trackedShipments, estadoDelEnvio, validador, red,
-                events, Clock.fixed(AHORA, ZoneOffset.UTC));
+                events, Clock.fixed(AHORA, ZoneOffset.UTC), new SimpleMeterRegistry());
     }
 
     private static EventoLogisticoEntrante entrante(EventType tipo, Instant ocurridoEn) {
