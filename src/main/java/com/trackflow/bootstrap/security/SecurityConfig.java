@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
@@ -56,6 +57,20 @@ public class SecurityConfig {
                 // Authorization, que un sitio ajeno no puede añadir. Por eso se desactiva.
                 .csrf(AbstractHttpConfigurer::disable) // NOSONAR java:S4502 - API sin estado, JWT en cabecera, sin cookies
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // El número de seguimiento viaja en la URL y es la credencial del cliente:
+                // estas cabeceras acotan hasta dónde llega esa URL y por dónde viaja.
+                .headers(h -> h
+                        // Sin esto, al pulsar un enlace externo el navegador mandaría la URL
+                        // completa —número incluido— al sitio de destino en el Referer.
+                        .referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER))
+                        // El navegador recuerda un año que este dominio es solo HTTPS, así que
+                        // una petición escrita como http:// no llega a salir en claro.
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        .cacheControl(Customizer.withDefaults())
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .frameOptions(f -> f.sameOrigin()))
                 .authorizeHttpRequests(auth -> {
                     // El OPTIONS de precomprobación nunca lleva token, por diseño del propio
                     // CORS: si una regla de rol lo alcanza (como pasaba con /api/admin/**, que
