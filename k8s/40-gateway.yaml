@@ -1,0 +1,75 @@
+# API Gateway. Un solo punto de entrada en http://localhost para las tres APIs.
+#
+# Por qué existe: el límite de peticiones estaba escrito tres veces, una por servicio, con
+# tres filtros distintos que comparten copia de las mismas clases. Eso no escala y es lo
+# que el requisito de arquitectura señala. Aquí el límite se declara una vez, fuera del
+# código, y lo aplica el componente que ya ve todo el tráfico.
+#
+# Requisito previo: el controlador de Ingress tiene que estar instalado en el clúster.
+#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/kind/deploy.yaml
+#   kubectl -n ingress-nginx wait --for=condition=ready pod -l app.kubernetes.io/component=controller --timeout=180s
+#
+# Los filtros que quedan dentro de cada API no sobran: siguen siendo la defensa si alguien
+# llega al servicio sin pasar por aquí, que es justo lo que Zero Trust exige. El gateway
+# es la primera barrera, no la única.
+---
+# Límite general: 100 peticiones por minuto y por IP de cliente para todo /api.
+# Es el techo del tráfico normal de un navegador; el abuso masivo se corta aquí y nunca
+# llega a consumir conexiones de base de datos.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trackflow-gateway
+  namespace: trackflow
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rpm: "100"
+    # Ráfaga permitida antes de empezar a rechazar: una pantalla que pide varias cosas a
+    # la vez no debe recibir un 429 por hacer su trabajo.
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
+    # El cliente real está detrás del proxy del clúster; sin esto se contaría la IP del
+    # proxy y todos los clientes compartirían una sola cuota.
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          # Las rutas más específicas primero: nginx resuelve por prefijo más largo.
+          - path: /api/reports
+            pathType: Prefix
+            backend: { service: { name: api-reportes, port: { number: 8080 } } }
+          - path: /api/tracking
+            pathType: Prefix
+            backend: { service: { name: api-reportes, port: { number: 8080 } } }
+          - path: /api/centers
+            pathType: Prefix
+            backend: { service: { name: api-logistica, port: { number: 8080 } } }
+          # Todo lo demás (/api/auth, /api/admin, /api/shipments, /api/pickups, /api/cities)
+          # es de la API de envíos y acceso, que es la que emite los tokens.
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: api-envios, port: { number: 8080 } } }
+---
+# Límite más estricto para la autenticación, que es donde un ataque por fuerza bruta
+# hace más daño con menos peticiones. 10 por minuto bastan de sobra para una persona
+# que escribe su clave; un atacante que prueba nombres en serie se queda fuera enseguida.
+#
+# Va en un Ingress aparte porque las anotaciones de límite son por Ingress, no por ruta.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trackflow-gateway-auth
+  namespace: trackflow
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rpm: "10"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "2"
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend: { service: { name: api-envios, port: { number: 8080 } } }

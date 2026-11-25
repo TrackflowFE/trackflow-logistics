@@ -1,10 +1,26 @@
 # Clúster local de un solo nodo. Cada servicio publicado se enlaza a un puerto de tu equipo.
+#
+# El camino normal es el API Gateway, en http://localhost (puerto 80): centraliza el
+# límite de peticiones de las tres APIs. Los puertos 8080, 8082 y 8083 siguen publicados
+# para poder probar una API por separado, y para demostrar que su propio filtro sigue
+# protegiéndola aunque se entre sin pasar por el gateway.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: trackflow
 nodes:
   - role: control-plane
+    # El controlador de Ingress solo se instala en nodos con esta etiqueta: es lo que
+    # hace de API Gateway y publica las tres APIs en un solo puerto.
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
     extraPortMappings:
+      - containerPort: 80     # API Gateway (entrada única de las tres APIs)
+        hostPort: 80
+        protocol: TCP
       - containerPort: 30080   # API de envíos
         hostPort: 8080
         protocol: TCP

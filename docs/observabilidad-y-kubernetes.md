@@ -212,6 +212,53 @@ Comprobación en el navegador:
 
 Si el dashboard no aparece, el plan B es importarlo a mano: Dashboards, New, Import, y escribe el número 4701 (JVM Micrometer).
 
+## 6 bis. API Gateway
+
+El límite de peticiones estaba escrito tres veces —una por servicio, con copias de las
+mismas clases Java— y eso es exactamente lo que un API Gateway evita. En el clúster el
+papel lo hace el controlador de Ingress: ve todo el tráfico, así que el límite se declara
+una vez y fuera del código.
+
+Instálalo una sola vez por clúster:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/kind/deploy.yaml
+```
+
+Espera a que esté listo y aplica las reglas:
+
+```bash
+kubectl -n ingress-nginx wait --for=condition=ready pod -l app.kubernetes.io/component=controller --timeout=180s
+```
+
+```bash
+kubectl apply -f ~/trackflow-logistics/k8s/40-gateway.yaml
+```
+
+A partir de ahí las tres APIs se alcanzan por **http://localhost**, sin puerto:
+
+| Ruta | A dónde va | Límite |
+|---|---|---|
+| `/api/auth/**` | Envíos | 10 por minuto y por IP |
+| `/api/reports/**`, `/api/tracking/**` | Reportes | 100 por minuto y por IP |
+| `/api/centers/**` | Logística | 100 por minuto y por IP |
+| todo lo demás | Envíos | 100 por minuto y por IP |
+
+Comprobación: 15 peticiones seguidas al login deben terminar en 429.
+
+```bash
+for i in $(seq 1 15); do curl -s -o /dev/null -w "%{http_code} " -X POST http://localhost/api/auth/login -H 'Content-Type: application/json' -d '{"username":"x","password":"y"}'; done; echo
+```
+
+Los filtros que quedan dentro de cada API no sobran. Si alguien alcanza un servicio sin
+pasar por el gateway —otro pod del clúster, o una prueba contra el puerto 8083— el
+límite propio del servicio sigue aplicándose. El gateway es la primera barrera, no la
+única, que es lo que pide Zero Trust.
+
+**Esto vale para el clúster, no para Render.** Allí los tres servicios son despliegues
+independientes con su propio dominio y no hay un punto por donde pase todo; por eso el
+límite por IP dentro de cada API sigue siendo necesario en producción.
+
 ## 7. Qué hay que entregar (evidencia)
 
 1. El pull request de la rama `feat/observabilidad-k8s` en **trackflow-logistics**, con la dependencia, la regla de seguridad, el contador de negocio y los archivos de `k8s/`.
@@ -219,6 +266,8 @@ Si el dashboard no aparece, el plan B es importarlo a mano: Dashboards, New, Imp
 3. Captura de `http://localhost:9090/targets` con las APIs en `UP`.
 4. Captura del dashboard de Grafana con tráfico en las gráficas.
 5. Captura de `docker images` donde se vea la imagen `trackflow-logistics-api:local`.
+6. Captura del `for` de arriba, donde se vean los 200 pasando a 429 al cruzar el límite
+   del gateway.
 
 Todas las capturas deben mostrar la fecha y hora del equipo o un fondo reconocible, para que se vea que son propias.
 
