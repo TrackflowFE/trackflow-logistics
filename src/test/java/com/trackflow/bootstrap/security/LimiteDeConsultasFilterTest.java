@@ -74,7 +74,8 @@ class LimiteDeConsultasFilterTest {
         assertEquals(ORIGENES, response.getHeader("Access-Control-Allow-Origin"));
         assertEquals("45", response.getHeader("Retry-After"));
         assertEquals("no-store", response.getHeader("Cache-Control"));
-        assertEquals("application/problem+json", response.getContentType());
+        // El charset va explicito: sin el, el contenedor usa ISO-8859-1.
+        assertEquals("application/problem+json;charset=UTF-8", response.getContentType());
     }
 
     @Test
