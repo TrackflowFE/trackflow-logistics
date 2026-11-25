@@ -239,10 +239,15 @@ A partir de ahí las tres APIs se alcanzan por **http://localhost**, sin puerto:
 
 | Ruta | A dónde va | Límite |
 |---|---|---|
-| `/api/auth/**` | Envíos | 10 por minuto y por IP |
+| `/api/auth/login`, `/api/auth/clave/**` | Envíos | 10 por minuto y por IP |
 | `/api/reports/**`, `/api/tracking/**` | Reportes | 100 por minuto y por IP |
 | `/api/centers/**` | Logística | 100 por minuto y por IP |
 | todo lo demás | Envíos | 100 por minuto y por IP |
+
+El límite estricto cubre el inicio de sesión y las rutas de contraseña, no todo
+`/api/auth`: la pantalla consulta `/api/auth/sesion` en cada carga, y varias personas
+de una oficina salen por una sola IP. Con el prefijo completo, el uso normal agotaría
+la cuota y nadie podría entrar.
 
 Comprobación: 15 peticiones seguidas al login deben terminar en 429.
 

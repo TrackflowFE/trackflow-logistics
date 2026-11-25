@@ -56,6 +56,11 @@ spec:
 # que escribe su clave; un atacante que prueba nombres en serie se queda fuera enseguida.
 #
 # Va en un Ingress aparte porque las anotaciones de límite son por Ingress, no por ruta.
+#
+# Cubre solo el inicio de sesion y las rutas de contrasena, NO todo /api/auth: la
+# pantalla del frontend consulta /api/auth/sesion en cada carga, y varias personas de
+# una misma oficina salen a internet por una sola IP. Con el prefijo completo, el uso
+# normal de una oficina agotaria la cuota y nadie podria entrar.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -70,6 +75,9 @@ spec:
   rules:
     - http:
         paths:
-          - path: /api/auth
+          - path: /api/auth/login
+            pathType: Prefix
+            backend: { service: { name: api-envios, port: { number: 8080 } } }
+          - path: /api/auth/clave
             pathType: Prefix
             backend: { service: { name: api-envios, port: { number: 8080 } } }
