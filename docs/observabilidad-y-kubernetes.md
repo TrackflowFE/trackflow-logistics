@@ -242,12 +242,26 @@ A partir de ahí las tres APIs se alcanzan por **http://localhost**, sin puerto:
 | `/api/auth/login`, `/api/auth/clave/**` | Envíos | 10 por minuto y por IP |
 | `/api/reports/**`, `/api/tracking/**` | Reportes | 100 por minuto y por IP |
 | `/api/centers/**` | Logística | 100 por minuto y por IP |
+| `/api/shipments/{n}/events`, `/route`, `/actions` | Logística | 100 por minuto y por IP |
 | todo lo demás | Envíos | 100 por minuto y por IP |
 
 El límite estricto cubre el inicio de sesión y las rutas de contraseña, no todo
 `/api/auth`: la pantalla consulta `/api/auth/sesion` en cada carga, y varias personas
 de una oficina salen por una sola IP. Con el prefijo completo, el uso normal agotaría
 la cuota y nadie podría entrar.
+
+El reparto de `/api/shipments` no es por prefijo: el historial, el itinerario y las
+acciones de un envío los sirve logística, mientras que crear y listar envíos, y el
+comprobante, son de la API de envíos. Por eso el Ingress general usa expresiones
+regulares, y conviene comprobar ese reparto antes de dar el gateway por bueno:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}
+" http://localhost/api/shipments/TF0000000001/events
+```
+
+Debe responder 404 (el envío no existe) o 200, nunca 401: un 401 significa que llegó
+a la API de envíos, que exige token en esa ruta, en vez de a logística.
 
 Comprobación: 15 peticiones seguidas al login deben terminar en 429.
 

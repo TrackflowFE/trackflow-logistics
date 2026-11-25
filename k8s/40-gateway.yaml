@@ -29,6 +29,7 @@ metadata:
     nginx.ingress.kubernetes.io/limit-connections: "20"
     # El cliente real está detrás del proxy del clúster; sin esto se contaría la IP del
     # proxy y todos los clientes compartirían una sola cuota.
+    nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
 spec:
   ingressClassName: nginx
@@ -44,6 +45,12 @@ spec:
             backend: { service: { name: api-reportes, port: { number: 8080 } } }
           - path: /api/centers
             pathType: Prefix
+            backend: { service: { name: api-logistica, port: { number: 8080 } } }
+          # El historial, el itinerario y las acciones de un envio los sirve logistica;
+          # crear y listar envios, y el comprobante, son de la API de envios. Con prefijos
+          # puros no se distinguen, porque todas cuelgan de /api/shipments.
+          - path: /api/shipments/[^/]+/(events|route|actions)
+            pathType: ImplementationSpecific
             backend: { service: { name: api-logistica, port: { number: 8080 } } }
           # Todo lo demás (/api/auth, /api/admin, /api/shipments, /api/pickups, /api/cities)
           # es de la API de envíos y acceso, que es la que emite los tokens.
