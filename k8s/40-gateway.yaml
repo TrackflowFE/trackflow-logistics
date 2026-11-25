@@ -13,6 +13,18 @@
 # llega al servicio sin pasar por aquí, que es justo lo que Zero Trust exige. El gateway
 # es la primera barrera, no la única.
 ---
+# nginx responde 503 cuando corta por limite, y 503 significa "servicio caido": un
+# cliente legitimo reintentaria en vez de esperar. 429 es el codigo correcto, y es el
+# que el frontend ya interpreta. Se configura en el controlador, no por Ingress.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+data:
+  limit-req-status-code: "429"
+  limit-conn-status-code: "429"
+---
 # Límite general: 100 peticiones por minuto y por IP de cliente para todo /api.
 # Es el techo del tráfico normal de un navegador; el abuso masivo se corta aquí y nunca
 # llega a consumir conexiones de base de datos.
@@ -75,7 +87,9 @@ metadata:
   namespace: trackflow
   annotations:
     nginx.ingress.kubernetes.io/limit-rpm: "10"
-    nginx.ingress.kubernetes.io/limit-burst-multiplier: "2"
+    # Multiplicador 1: sin rafaga extra. Con 2, nginx admitia 20 de golpe y el techo
+    # real era el doble del declarado. Un inicio de sesion no necesita rafaga.
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "1"
     nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
 spec:
   ingressClassName: nginx
